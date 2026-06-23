@@ -34,11 +34,14 @@ def list_failed_urls(
     host: str | None = None,
     page: int = 1,
 ) -> tuple[list, int]:
-    where = ["cu.status IN ('failed_transient','failed_permanent','dead')"]
+    _FAIL_STATUSES = ("failed_transient", "failed_permanent", "dead")
+    where = [f"cu.status IN ('failed_transient','failed_permanent','dead')"]
     params: dict = {}
 
-    if status and status in ("failed_transient", "failed_permanent", "dead"):
-        where = [f"cu.status = :status"]
+    if status:
+        if status not in _FAIL_STATUSES:
+            return [], 0
+        where = ["cu.status = :status"]
         params["status"] = status
     if source_type:
         where.append("cu.source_type = :source_type")

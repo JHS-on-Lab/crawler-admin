@@ -18,13 +18,18 @@
 <div class="row g-2 mb-4">
   {% for status, label, color, bg in status_meta %}
   {% set cnt = status_map.get(status, 0) %}
+  {% set is_fail = status in ('failed_transient','failed_permanent','dead') %}
   <div class="col-6 col-xl-2 col-md-4">
+    {% if is_fail %}
     <a href="/urls?status={{ status }}" class="stat-card clickable d-block"
        style="border-left: 3px solid {{ color }}; text-decoration:none;">
+    {% else %}
+    <div class="stat-card d-block" style="border-left: 3px solid {{ color }};">
+    {% endif %}
       <div class="stat-label mb-1">{{ label }}</div>
       <div class="d-flex justify-content-between align-items-center">
         <div class="stat-value" style="color:{{ color }}; font-size:1.35rem;">{{ "{:,}".format(cnt) }}</div>
-        {% if status in ('failed_transient','failed_permanent','dead') and cnt > 0 %}
+        {% if is_fail and cnt > 0 %}
         <form method="post" action="/urls/reinject-bulk" class="d-inline" onclick="event.stopPropagation()">
           <input type="hidden" name="status" value="{{ status }}">
           <button class="btn btn-sm" style="font-size:0.68rem; padding:0.2rem 0.5rem;
@@ -35,7 +40,7 @@
         </form>
         {% endif %}
       </div>
-    </a>
+    {% if is_fail %}</a>{% else %}</div>{% endif %}
   </div>
   {% endfor %}
 </div>
