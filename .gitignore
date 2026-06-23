@@ -5,6 +5,7 @@
 .venv/
 venv/
 env/
+ENV/
 
 # Claude Code
 .claude/
@@ -12,9 +13,13 @@ env/
 # Python
 __pycache__/
 *.py[cod]
+*.pyo
+*.pyd
+*.egg
 *.egg-info/
 dist/
 build/
+*.so
 
 # Logs
 logs/
@@ -23,6 +28,9 @@ logs/
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
 
 # OS
 .DS_Store
+Thumbs.db
