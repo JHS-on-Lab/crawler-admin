@@ -7,11 +7,11 @@
 
 ## 1. 개요
 
-keyword-crawler 가 사용하는 MySQL DB(`keyword_crawler`)에 직접 접속해
+keyword-crawler 가 사용하는 MySQL DB(`crawlerdb`)에 직접 접속해
 키워드 등록·수집 오류 모니터링·도메인 규칙 관리·수집 이력 조회를 웹 UI로 제공하는
 **내부 운영 전용** 관리 도구다.
 
-- **대상 DB**: keyword-crawler 와 동일한 RDS (`keyword_crawler` 스키마)
+- **대상 DB**: keyword-crawler 와 동일한 RDS (`crawlerdb` 스키마)
 - **접근 방식**: 별도 API 없이 DB 직접 읽기/쓰기
 - **인증**: 단일 관리자 계정 (환경변수 설정)
 - **배포**: Docker 컨테이너 단일 인스턴스
@@ -26,7 +26,7 @@ keyword-crawler          rescrape-dispatcher       crawler-admin
   → Solr                                            t_domain 규칙 편집
                                                     t_collection_log 조회
               ╲                   ╱                      │
-               └── MySQL (keyword_crawler) ──────────────┘
+               └── MySQL (crawlerdb) ──────────────┘
 ```
 
 crawler-admin 은 **읽기 전용이 아니다.** 키워드 등록·수정·비활성화, URL 재투입, 도메인 규칙 편집 등 운영에 필요한 쓰기 작업을 수행한다.
@@ -52,7 +52,7 @@ FastAPI (uvicorn)
           │
           ▼  SQLAlchemy Core
     MySQL (RDS)  ←  SSH Tunnel (로컬/NAT 환경)
-    keyword_crawler
+    crawlerdb
       ├── t_keyword
       ├── t_crawl_url
       ├── t_domain
@@ -204,7 +204,7 @@ Starlette 미들웨어는 추가 역순으로 실행된다.
 | `RDS_PORT` | `3306` | MySQL 포트 |
 | `RDS_USER` | (필수) | MySQL 사용자 |
 | `RDS_PASSWORD` | (필수) | MySQL 비밀번호 |
-| `RDS_CRAWLER_DB` | (필수) | 접속 스키마 (`keyword_crawler`) |
+| `RDS_CRAWLER_DB` | (필수) | 접속 스키마 (`crawlerdb`) |
 | `TUNNEL_ENABLED` | `false` | SSH 터널 사용 여부 |
 | `TUNNEL_SSH_HOST` | — | SSH 서버 호스트 |
 | `TUNNEL_SSH_PORT` | `22` | SSH 서버 포트 |
