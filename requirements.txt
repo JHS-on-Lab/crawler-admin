@@ -1,0 +1,17 @@
+# Web
+fastapi==0.115.5
+uvicorn==0.32.1
+jinja2==3.1.4
+python-multipart==0.0.20
+itsdangerous==2.2.0
+
+# DB
+SQLAlchemy==2.0.41
+PyMySQL==1.1.1
+
+# SSH Tunnel
+sshtunnel==0.4.0
+paramiko==3.5.1
+
+# Config
+python-dotenv==1.1.0

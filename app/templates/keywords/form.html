@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% set is_edit = kw is not none %}
+{% block title %}{{ '키워드 수정' if is_edit else '키워드 추가' }} — Crawler Admin{% endblock %}
+{% block page_title %}{{ '키워드 수정' if is_edit else '키워드 추가' }}{% endblock %}
+{% block page_subtitle %}{{ kw.keyword if is_edit else '새 키워드를 등록합니다.' }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header">
+        <i class="bi bi-tag text-primary"></i>
+        {{ '키워드 정보 수정' if is_edit else '새 키워드 등록' }}
+      </div>
+      <div class="card-body">
+        <form method="post" action="{{ '/keywords/' + kw.id|string + '/edit' if is_edit else '/keywords/new' }}">
+
+          {% if not is_edit %}
+          <div class="mb-3">
+            <label class="form-label fw-semibold" style="font-size:0.8rem;">소스 타입 <span class="text-danger">*</span></label>
+            <select name="source_type" class="form-select" style="font-size:0.875rem;" required>
+              <option value="">선택하세요</option>
+              {% for st in source_types %}
+              <option value="{{ st }}">{{ st }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          {% endif %}
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold" style="font-size:0.8rem;">
+              키워드 <span class="text-danger">*</span>
+              {% if is_edit %}
+              <span class="badge bg-light text-dark border ms-1">{{ kw.source_type }}</span>
+              {% endif %}
+            </label>
+            <input type="text" name="keyword" class="form-control" style="font-size:0.875rem;"
+                   value="{{ kw.keyword if is_edit else '' }}"
+                   placeholder="예: 삼성전자 또는 종목코드 005930"
+                   {% if is_edit %}{% endif %} required>
+            <div class="form-text" style="font-size:0.75rem;">NAVER_STOCK 은 종목코드 (예: 005930)</div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold" style="font-size:0.8rem;">표시명</label>
+            <input type="text" name="display_name" class="form-control" style="font-size:0.875rem;"
+                   value="{{ kw.display_name or '' if is_edit else '' }}"
+                   placeholder="사람이 읽기 쉬운 라벨 (선택)">
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-6">
+              <label class="form-label fw-semibold" style="font-size:0.8rem;">우선순위</label>
+              <input type="number" name="priority" class="form-control" style="font-size:0.875rem;"
+                     value="{{ kw.priority if is_edit else 0 }}" min="0" max="100">
+              <div class="form-text" style="font-size:0.75rem;">높을수록 먼저 처리</div>
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-semibold" style="font-size:0.8rem;">수집 주기 (초)</label>
+              <input type="number" name="interval_seconds" class="form-control" style="font-size:0.875rem;"
+                     value="{{ kw.interval_seconds if is_edit else 86400 }}" min="60">
+              <div class="form-text" style="font-size:0.75rem;">기본 86400 = 24시간</div>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2 pt-2">
+            <button type="submit" class="btn btn-primary" style="font-size:0.825rem;">
+              <i class="bi bi-check-lg"></i> {{ '저장' if is_edit else '등록' }}
+            </button>
+            <a href="/keywords" class="btn btn-outline-secondary" style="font-size:0.825rem;">취소</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

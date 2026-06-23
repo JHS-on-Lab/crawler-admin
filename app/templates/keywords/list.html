@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}키워드 관리 — Crawler Admin{% endblock %}
+{% block page_title %}키워드 관리{% endblock %}
+{% block page_subtitle %}소스별 키워드 등록 및 수집 스케줄 관리{% endblock %}
+
+{% block topbar_actions %}
+<a href="/keywords/new" class="btn btn-sm btn-primary d-flex align-items-center gap-1" style="font-size:0.8rem;">
+  <i class="bi bi-plus-lg"></i> 키워드 추가
+</a>
+{% endblock %}
+
+{% block content %}
+
+{# ── 소스 필터 탭 ── #}
+<div class="d-flex gap-2 mb-3 flex-wrap">
+  <a href="/keywords" class="btn btn-sm {% if not filter_source %}btn-dark{% else %}btn-outline-secondary{% endif %}"
+     style="font-size:0.78rem;">
+    전체
+  </a>
+  {% for row in counts %}
+  <a href="/keywords?source_type={{ row.source_type }}"
+     class="btn btn-sm {% if filter_source == row.source_type %}btn-dark{% else %}btn-outline-secondary{% endif %}"
+     style="font-size:0.78rem;">
+    {{ row.source_type }}
+    <span class="ms-1 badge {% if filter_source == row.source_type %}bg-white text-dark{% else %}bg-secondary{% endif %}">
+      {{ row.total }}
+    </span>
+  </a>
+  {% endfor %}
+
+  <div class="ms-auto d-flex align-items-center gap-2">
+    <select class="form-select form-select-sm" style="width:auto;font-size:0.78rem;"
+            onchange="location.href='/keywords?source_type={{ filter_source }}&enabled='+this.value">
+      <option value="" {% if not filter_enabled %}selected{% endif %}>전체 상태</option>
+      <option value="true"  {% if filter_enabled=='true'  %}selected{% endif %}>활성만</option>
+      <option value="false" {% if filter_enabled=='false' %}selected{% endif %}>비활성만</option>
+    </select>
+  </div>
+</div>
+
+{# ── 키워드 테이블 ── #}
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th style="width:3rem;">ID</th>
+          <th>키워드</th>
+          <th>소스</th>
+          <th>우선순위</th>
+          <th>주기</th>
+          <th>다음 수집</th>
+          <th>상태</th>
+          <th class="text-end">액션</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for kw in keywords %}
+        <tr>
+          <td class="text-muted">{{ kw.id }}</td>
+          <td>
+            <div class="fw-medium">{{ kw.keyword }}</div>
+            {% if kw.display_name %}
+            <div class="text-muted" style="font-size:0.75rem;">{{ kw.display_name }}</div>
+            {% endif %}
+          </td>
+          <td><span class="badge bg-light text-dark border" style="font-size:0.7rem;">{{ kw.source_type }}</span></td>
+          <td class="text-center">{{ kw.priority }}</td>
+          <td class="text-muted">
+            {% set h = (kw.interval_seconds // 3600) %}
+            {% set m = ((kw.interval_seconds % 3600) // 60) %}
+            {% if h > 0 %}{{ h }}h{% endif %}{% if m > 0 %} {{ m }}m{% endif %}
+          </td>
+          <td style="font-size:0.78rem;">
+            {% if kw.next_discover_at %}
+              {{ kw.next_discover_at.strftime('%m/%d %H:%M') }}
+              {% if kw.retry_pending %}
+              <span class="badge badge-failed_transient ms-1">retry</span>
+              {% endif %}
+            {% else %}
+              <span class="text-success fw-medium">즉시</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if kw.enabled %}
+            <span class="badge badge-stored"><i class="bi bi-circle-fill" style="font-size:0.5rem;"></i> 활성</span>
+            {% else %}
+            <span class="badge badge-dead" title="{{ kw.disabled_reason or '' }}">비활성</span>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            <div class="d-flex justify-content-end gap-1">
+              {# 즉시 수집 #}
+              <form method="post" action="/keywords/{{ kw.id }}/trigger" class="d-inline">
+                <button class="btn btn-sm btn-outline-primary" style="font-size:0.72rem;" title="즉시 수집 예약">
+                  <i class="bi bi-lightning-charge"></i>
+                </button>
+              </form>
+
+              {# 수정 #}
+              <a href="/keywords/{{ kw.id }}/edit"
+                 class="btn btn-sm btn-outline-secondary" style="font-size:0.72rem;" title="수정">
+                <i class="bi bi-pencil"></i>
+              </a>
+
+              {# 활성/비활성 토글 #}
+              {% if kw.enabled %}
+              <button class="btn btn-sm btn-outline-danger" style="font-size:0.72rem;" title="비활성화"
+                      data-bs-toggle="modal" data-bs-target="#disableModal{{ kw.id }}">
+                <i class="bi bi-pause-circle"></i>
+              </button>
+              {% else %}
+              <form method="post" action="/keywords/{{ kw.id }}/toggle" class="d-inline">
+                <input type="hidden" name="enabled" value="true">
+                <button class="btn btn-sm btn-outline-success" style="font-size:0.72rem;" title="활성화">
+                  <i class="bi bi-play-circle"></i>
+                </button>
+              </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+
+        {# 비활성화 확인 모달 #}
+        {% if kw.enabled %}
+        <div class="modal fade" id="disableModal{{ kw.id }}" tabindex="-1">
+          <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+              <div class="modal-header py-2 px-3">
+                <h6 class="modal-title" style="font-size:0.875rem;">키워드 비활성화</h6>
+                <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="modal"></button>
+              </div>
+              <form method="post" action="/keywords/{{ kw.id }}/toggle">
+                <input type="hidden" name="enabled" value="false">
+                <div class="modal-body py-2 px-3">
+                  <p style="font-size:0.825rem;" class="mb-2"><strong>{{ kw.keyword }}</strong> 를 비활성화합니다.</p>
+                  <input type="text" name="disabled_reason" class="form-control form-control-sm"
+                         placeholder="비활성화 이유 (선택)">
+                </div>
+                <div class="modal-footer py-2 px-3">
+                  <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">취소</button>
+                  <button type="submit" class="btn btn-sm btn-danger">비활성화</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        {% else %}
+        <tr><td colspan="8" class="text-center text-muted py-5">등록된 키워드가 없습니다.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

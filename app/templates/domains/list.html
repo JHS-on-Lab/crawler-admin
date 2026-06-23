@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}도메인 규칙 — Crawler Admin{% endblock %}
+{% block page_title %}도메인 규칙{% endblock %}
+{% block page_subtitle %}도메인별 추출 규칙 및 수집 정책 관리{% endblock %}
+
+{% block content %}
+
+{# ── Search Bar ── #}
+<form method="get" action="/domains">
+  <div class="filter-bar mb-3">
+    <i class="bi bi-search text-muted"></i>
+    <input type="text" name="search" class="form-control form-control-sm"
+           style="width:280px;" placeholder="도메인 검색..." value="{{ search }}">
+    <button type="submit" class="btn btn-sm btn-primary" style="font-size:0.78rem;">검색</button>
+    {% if search %}
+    <a href="/domains" class="btn btn-sm btn-outline-secondary" style="font-size:0.78rem;">초기화</a>
+    {% endif %}
+    <span class="ms-auto text-muted" style="font-size:0.78rem;">총 {{ domains|length }}개 도메인</span>
+  </div>
+</form>
+
+{# ── Domain Table ── #}
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>도메인</th>
+          <th class="text-center">렌더 모드</th>
+          <th class="text-center">규칙</th>
+          <th class="text-end">지연(ms)</th>
+          <th class="text-end">성공률</th>
+          <th class="text-center">실패 수</th>
+          <th>쿨다운</th>
+          <th class="text-end">액션</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in domains %}
+        <tr class="{% if d.cooldown_until %}table-warning{% endif %}">
+          <td>
+            <div class="fw-medium" style="font-size:0.825rem;">{{ d.host }}</div>
+            {% if d.updated_by %}
+            <div class="text-muted" style="font-size:0.7rem;">by {{ d.updated_by }}</div>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            {% if d.render_mode == 'headless' %}
+            <span class="badge bg-warning text-dark" style="font-size:0.68rem;">headless</span>
+            {% elif d.render_mode == 'headless_with_iframe' %}
+            <span class="badge bg-warning text-dark" style="font-size:0.68rem;">headless+iframe</span>
+            {% else %}
+            <span class="badge bg-light text-dark border" style="font-size:0.68rem;">static</span>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            {% if d.rules_json %}
+              {% if d.rules_enabled %}
+              <span class="badge badge-stored"><i class="bi bi-check-lg"></i> 활성</span>
+              {% else %}
+              <span class="badge badge-dead">비활성</span>
+              {% endif %}
+            {% else %}
+            <span class="text-muted" style="font-size:0.75rem;">—</span>
+            {% endif %}
+          </td>
+          <td class="text-end text-muted">{{ d.crawl_delay_ms or '기본' }}</td>
+          <td class="text-end">
+            {% if d.success_rate is not none %}
+            {% set rate = d.success_rate | round(1) %}
+            <span class="{% if rate >= 80 %}text-success{% elif rate >= 50 %}text-warning{% else %}text-danger{% endif %} fw-medium">
+              {{ rate }}%
+            </span>
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            {% if d.recent_fail_count > 0 %}
+            <span class="badge badge-failed_transient">{{ d.recent_fail_count }}</span>
+            {% else %}
+            <span class="text-muted">0</span>
+            {% endif %}
+          </td>
+          <td style="font-size:0.75rem;">
+            {% if d.cooldown_until %}
+            <span class="text-danger fw-medium">
+              <i class="bi bi-clock-fill"></i>
+              {{ d.cooldown_until.strftime('%m/%d %H:%M') }}
+            </span>
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            <div class="d-flex justify-content-end gap-1">
+              {# 규칙 편집 #}
+              {% if d.rules_json %}
+              <button class="btn btn-sm btn-outline-secondary" style="font-size:0.72rem;"
+                      data-bs-toggle="modal" data-bs-target="#rulesModal{{ loop.index }}" title="규칙 편집">
+                <i class="bi bi-braces"></i>
+              </button>
+
+              {# 규칙 활성/비활성 토글 #}
+              <form method="post" action="/domains/{{ d.host }}/toggle-rules" class="d-inline">
+                <button class="btn btn-sm {% if d.rules_enabled %}btn-outline-warning{% else %}btn-outline-success{% endif %}"
+                        style="font-size:0.72rem;" title="{{ '규칙 비활성화' if d.rules_enabled else '규칙 활성화' }}">
+                  <i class="bi bi-toggle-{% if d.rules_enabled %}on{% else %}off{% endif %}"></i>
+                </button>
+              </form>
+              {% endif %}
+
+              {# 쿨다운 해제 #}
+              {% if d.cooldown_until %}
+              <form method="post" action="/domains/{{ d.host }}/clear-cooldown" class="d-inline">
+                <button class="btn btn-sm btn-outline-success" style="font-size:0.72rem;" title="쿨다운 해제">
+                  <i class="bi bi-unlock"></i>
+                </button>
+              </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+
+        {# 규칙 편집 모달 #}
+        {% if d.rules_json %}
+        <div class="modal fade" id="rulesModal{{ loop.index }}" tabindex="-1">
+          <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+              <div class="modal-header py-2 px-3">
+                <h6 class="modal-title" style="font-size:0.875rem;">
+                  <i class="bi bi-braces"></i> {{ d.host }} — 규칙 편집
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <form method="post" action="/domains/{{ d.host }}/edit-rules">
+                <div class="modal-body px-3 py-2">
+                  <div class="mb-2 d-flex align-items-center gap-2">
+                    <label class="form-label mb-0 fw-semibold" style="font-size:0.8rem;">규칙 활성화</label>
+                    <div class="form-check form-switch mb-0">
+                      <input class="form-check-input" type="checkbox" name="rules_enabled"
+                             value="true" {% if d.rules_enabled %}checked{% endif %}>
+                    </div>
+                  </div>
+                  <label class="form-label fw-semibold" style="font-size:0.8rem;">규칙 JSON</label>
+                  <textarea name="rules_json" class="form-control font-monospace" rows="14"
+                            style="font-size:0.75rem; resize:vertical;">{{ d.rules_json | tojson(indent=2) if d.rules_json else '{}' }}</textarea>
+                </div>
+                <div class="modal-footer py-2 px-3">
+                  <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">취소</button>
+                  <button type="submit" class="btn btn-sm btn-primary">저장</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        {% else %}
+        <tr>
+          <td colspan="8" class="text-center text-muted py-5">
+            <i class="bi bi-globe2 d-block mb-2" style="font-size:1.5rem;"></i>
+            등록된 도메인 규칙이 없습니다.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

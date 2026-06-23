@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}URL 큐 — Crawler Admin{% endblock %}
+{% block page_title %}URL 큐{% endblock %}
+{% block page_subtitle %}수집 URL 상태 현황 및 실패 URL 재투입{% endblock %}
+
+{% block content %}
+
+{# ── Status Summary Cards ── #}
+{% set status_meta = [
+  ("discovered",       "발견됨",    "#2563eb", "#eff6ff"),
+  ("extracting",       "추출 중",   "#d97706", "#fffbeb"),
+  ("stored",           "저장 완료", "#16a34a", "#f0fdf4"),
+  ("failed_transient", "일시 실패", "#ea580c", "#fff7ed"),
+  ("failed_permanent", "영구 실패", "#dc2626", "#fef2f2"),
+  ("dead",             "폐기",      "#64748b", "#f8fafc"),
+] %}
+<div class="row g-2 mb-4">
+  {% for status, label, color, bg in status_meta %}
+  {% set cnt = status_map.get(status, 0) %}
+  <div class="col-6 col-xl-2 col-md-4">
+    <a href="/urls?status={{ status }}" class="stat-card clickable d-block"
+       style="border-left: 3px solid {{ color }}; text-decoration:none;">
+      <div class="stat-label mb-1">{{ label }}</div>
+      <div class="d-flex justify-content-between align-items-center">
+        <div class="stat-value" style="color:{{ color }}; font-size:1.35rem;">{{ "{:,}".format(cnt) }}</div>
+        {% if status in ('failed_transient','failed_permanent','dead') and cnt > 0 %}
+        <form method="post" action="/urls/reinject-bulk" class="d-inline" onclick="event.stopPropagation()">
+          <input type="hidden" name="status" value="{{ status }}">
+          <button class="btn btn-sm" style="font-size:0.68rem; padding:0.2rem 0.5rem;
+                  background:{{ bg }}; color:{{ color }}; border: 1px solid {{ color }};"
+                  title="전체 재투입" onclick="return confirm('{{ cnt }}개를 모두 재투입할까요?')">
+            <i class="bi bi-arrow-clockwise"></i> 전체
+          </button>
+        </form>
+        {% endif %}
+      </div>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+
+{# ── Filter Bar ── #}
+<form method="get" action="/urls">
+  <div class="filter-bar mb-3">
+    <i class="bi bi-funnel text-muted"></i>
+
+    <select name="status" class="form-select form-select-sm" style="width:auto;">
+      <option value="" {% if not filter_status %}selected{% endif %}>모든 상태</option>
+      {% for s in fail_statuses %}
+      <option value="{{ s }}" {% if filter_status == s %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+
+    <select name="source_type" class="form-select form-select-sm" style="width:auto;">
+      <option value="" {% if not filter_source %}selected{% endif %}>모든 소스</option>
+      {% for st in source_types %}
+      <option value="{{ st }}" {% if filter_source == st %}selected{% endif %}>{{ st }}</option>
+      {% endfor %}
+    </select>
+
+    <input type="text" name="host" class="form-control form-control-sm"
+           style="width:200px;" placeholder="도메인 검색..." value="{{ filter_host }}">
+
+    <button type="submit" class="btn btn-sm btn-primary" style="font-size:0.78rem;">
+      <i class="bi bi-search"></i> 검색
+    </button>
+    {% if filter_status or filter_source or filter_host %}
+    <a href="/urls" class="btn btn-sm btn-outline-secondary" style="font-size:0.78rem;">초기화</a>
+    {% endif %}
+
+    <span class="ms-auto text-muted" style="font-size:0.78rem;">
+      총 <strong>{{ "{:,}".format(total) }}</strong>건
+    </span>
+  </div>
+</form>
+
+{# ── URL Table ── #}
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>URL</th>
+          <th>소스</th>
+          <th>키워드</th>
+          <th>상태</th>
+          <th>오류</th>
+          <th class="text-center">시도</th>
+          <th>갱신 시각</th>
+          <th class="text-end">액션</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td style="max-width:280px;">
+            <a href="{{ row.url }}" target="_blank"
+               class="text-decoration-none text-truncate d-block"
+               style="font-size:0.78rem; max-width:280px;" title="{{ row.url }}">
+              {{ row.host }}
+              <i class="bi bi-box-arrow-up-right ms-1 text-muted" style="font-size:0.65rem;"></i>
+            </a>
+          </td>
+          <td style="font-size:0.75rem; white-space:nowrap;">{{ row.source_type }}</td>
+          <td style="font-size:0.78rem;">
+            {% if row.display_name %}{{ row.display_name }}
+            {% elif row.keyword %}{{ row.keyword }}
+            {% else %}<span class="text-muted">—</span>{% endif %}
+          </td>
+          <td>
+            <span class="badge badge-{{ row.status }}">{{ row.status }}</span>
+          </td>
+          <td style="max-width:180px;">
+            {% if row.last_error_code %}
+            <span class="badge bg-light text-dark border" style="font-size:0.68rem;">{{ row.last_error_code }}</span>
+            {% if row.last_error_msg %}
+            <div class="text-muted text-truncate" style="font-size:0.7rem; max-width:170px;"
+                 title="{{ row.last_error_msg }}">{{ row.last_error_msg }}</div>
+            {% endif %}
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="text-center text-muted">{{ row.attempt_count }}</td>
+          <td style="font-size:0.75rem; white-space:nowrap;" class="text-muted">
+            {{ row.updated_at.strftime('%m/%d %H:%M') if row.updated_at else '—' }}
+          </td>
+          <td class="text-end">
+            <form method="post" action="/urls/{{ row.id }}/reinject" class="d-inline">
+              <button class="btn btn-sm btn-outline-primary" style="font-size:0.72rem;" title="재투입">
+                <i class="bi bi-arrow-clockwise"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" class="text-center text-muted py-5">
+            <i class="bi bi-inbox d-block mb-2" style="font-size:1.5rem;"></i>
+            조회된 URL이 없습니다.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {# ── Pagination ── #}
+  {% if total_pages > 1 %}
+  <div class="card-footer d-flex justify-content-center py-2" style="background:#fafafa;">
+    <nav>
+      <ul class="pagination mb-0">
+        <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+          <a class="page-link" href="?page={{ page-1 }}&status={{ filter_status }}&source_type={{ filter_source }}&host={{ filter_host }}">
+            <i class="bi bi-chevron-left"></i>
+          </a>
+        </li>
+        {% for p in range([1, page-2]|max, [total_pages+1, page+3]|min) %}
+        <li class="page-item {% if p == page %}active{% endif %}">
+          <a class="page-link" href="?page={{ p }}&status={{ filter_status }}&source_type={{ filter_source }}&host={{ filter_host }}">{{ p }}</a>
+        </li>
+        {% endfor %}
+        <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+          <a class="page-link" href="?page={{ page+1 }}&status={{ filter_status }}&source_type={{ filter_source }}&host={{ filter_host }}">
+            <i class="bi bi-chevron-right"></i>
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}
