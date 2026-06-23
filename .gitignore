@@ -1,8 +1,5 @@
 # Environment
 .env*
-!.env
-!.env.local
-!.env.dev
 
 # Virtual environments
 .venv/
