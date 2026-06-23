@@ -22,7 +22,7 @@ build/
 *.so
 
 # Logs
-logs/
+/logs/
 *.log
 
 # IDE

@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}수집 이력 — Crawler Admin{% endblock %}
+{% block page_title %}수집 이력{% endblock %}
+{% block page_subtitle %}Discovery / Extraction 실행 로그{% endblock %}
+
+{% block content %}
+
+{# ── Filter Bar ── #}
+<form method="get" action="/logs">
+  <div class="filter-bar mb-3">
+    <i class="bi bi-funnel text-muted"></i>
+
+    <select name="run_type" class="form-select form-select-sm" style="width:auto;">
+      <option value="" {% if not filter_run_type %}selected{% endif %}>모든 타입</option>
+      <option value="discovery"  {% if filter_run_type=='discovery'  %}selected{% endif %}>Discovery</option>
+      <option value="extraction" {% if filter_run_type=='extraction' %}selected{% endif %}>Extraction</option>
+    </select>
+
+    <select name="source_type" class="form-select form-select-sm" style="width:auto;">
+      <option value="" {% if not filter_source %}selected{% endif %}>모든 소스</option>
+      {% for st in source_types %}
+      <option value="{{ st }}" {% if filter_source == st %}selected{% endif %}>{{ st }}</option>
+      {% endfor %}
+    </select>
+
+    <div class="d-flex align-items-center gap-1">
+      <label style="font-size:0.78rem; white-space:nowrap; color:#64748b;">부터</label>
+      <input type="date" name="from_date" class="form-control form-control-sm"
+             style="width:140px;" value="{{ filter_from_date }}">
+    </div>
+
+    <button type="submit" class="btn btn-sm btn-primary" style="font-size:0.78rem;">
+      <i class="bi bi-search"></i> 검색
+    </button>
+    {% if filter_run_type or filter_source or filter_from_date %}
+    <a href="/logs" class="btn btn-sm btn-outline-secondary" style="font-size:0.78rem;">초기화</a>
+    {% endif %}
+
+    <span class="ms-auto text-muted" style="font-size:0.78rem;">
+      총 <strong>{{ "{:,}".format(total) }}</strong>건
+    </span>
+  </div>
+</form>
+
+{# ── Log Table ── #}
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>날짜</th>
+          <th>타입</th>
+          <th>소스</th>
+          <th>키워드</th>
+          <th>워커</th>
+          <th class="text-end">소요시간</th>
+          <th class="text-end">결과</th>
+          <th>오류</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in rows %}
+        <tr class="{% if log.error_msg %}table-danger{% endif %}">
+          <td style="white-space:nowrap; font-size:0.78rem;">
+            {{ log.run_date.strftime('%Y-%m-%d') if log.run_date else '—' }}
+            <div class="text-muted" style="font-size:0.7rem;">
+              {{ log.started_at.strftime('%H:%M:%S') if log.started_at else '' }}
+            </div>
+          </td>
+          <td>
+            {% if log.run_type == 'discovery' %}
+            <span class="badge badge-discovered">discovery</span>
+            {% else %}
+            <span class="badge badge-stored">extraction</span>
+            {% endif %}
+          </td>
+          <td style="font-size:0.75rem; white-space:nowrap;">{{ log.source_type or '—' }}</td>
+          <td style="font-size:0.78rem;">
+            {% if log.display_name %}{{ log.display_name }}
+            {% elif log.keyword %}{{ log.keyword }}
+            {% else %}<span class="text-muted">—</span>{% endif %}
+          </td>
+          <td class="text-muted" style="font-size:0.75rem;">{{ log.worker_id or '—' }}</td>
+          <td class="text-end text-muted" style="font-size:0.78rem;">
+            {% if log.duration_ms %}
+              {% if log.duration_ms >= 60000 %}
+                {{ (log.duration_ms // 60000) }}m {{ ((log.duration_ms % 60000) // 1000) }}s
+              {% elif log.duration_ms >= 1000 %}
+                {{ (log.duration_ms / 1000) | round(1) }}s
+              {% else %}
+                {{ log.duration_ms }}ms
+              {% endif %}
+            {% else %}—{% endif %}
+          </td>
+          <td class="text-end" style="font-size:0.78rem;">
+            {% if log.run_type == 'discovery' %}
+              <span class="text-muted">발견 </span><strong>{{ log.urls_found or 0 }}</strong>
+              <span class="text-muted"> / 신규 </span>
+              <span class="text-success fw-medium">{{ log.urls_inserted or 0 }}</span>
+            {% else %}
+              <span class="text-muted">시도 </span><strong>{{ log.urls_attempted or 0 }}</strong>
+              <span class="text-muted"> / 성공 </span>
+              <span class="text-success fw-medium">{{ log.urls_success or 0 }}</span>
+              {% if log.urls_failed %}
+              <span class="text-muted"> / 실패 </span>
+              <span class="text-danger fw-medium">{{ log.urls_failed }}</span>
+              {% endif %}
+            {% endif %}
+          </td>
+          <td style="max-width:200px;">
+            {% if log.error_msg %}
+            <span class="text-danger text-truncate d-block" style="font-size:0.75rem;" title="{{ log.error_msg }}">
+              <i class="bi bi-exclamation-triangle-fill"></i> {{ log.error_msg }}
+            </span>
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" class="text-center text-muted py-5">
+            <i class="bi bi-journal d-block mb-2" style="font-size:1.5rem;"></i>
+            수집 이력이 없습니다.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {# ── Pagination ── #}
+  {% if total_pages > 1 %}
+  <div class="card-footer d-flex justify-content-center py-2" style="background:#fafafa;">
+    <nav>
+      <ul class="pagination mb-0">
+        <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+          <a class="page-link"
+             href="?page={{ page-1 }}&run_type={{ filter_run_type }}&source_type={{ filter_source }}&from_date={{ filter_from_date }}">
+            <i class="bi bi-chevron-left"></i>
+          </a>
+        </li>
+        {% for p in range([1, page-2]|max, [total_pages+1, page+3]|min) %}
+        <li class="page-item {% if p == page %}active{% endif %}">
+          <a class="page-link"
+             href="?page={{ p }}&run_type={{ filter_run_type }}&source_type={{ filter_source }}&from_date={{ filter_from_date }}">{{ p }}</a>
+        </li>
+        {% endfor %}
+        <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+          <a class="page-link"
+             href="?page={{ page+1 }}&run_type={{ filter_run_type }}&source_type={{ filter_source }}&from_date={{ filter_from_date }}">
+            <i class="bi bi-chevron-right"></i>
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}
