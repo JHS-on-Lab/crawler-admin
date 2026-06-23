@@ -93,7 +93,9 @@ SESSION_SECRET=
 # 로깅
 LOG_DIR=./logs
 LOG_LEVEL=INFO
-LOG_ROTATION=daily
+LOG_ROTATION=daily     # daily | size
+LOG_RETAIN_DAYS=30     # daily 모드: 보관 일수
+LOG_BACKUP_COUNT=10    # size 모드: 보관 파일 수
 ```
 
 ---

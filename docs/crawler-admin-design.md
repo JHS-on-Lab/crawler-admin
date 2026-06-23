@@ -96,18 +96,20 @@ Bootstrap 5 + Bootstrap Icons 는 CDN으로 로드한다.
 
 **source_type 값**: `NAVER_NEWS`, `DAUM_NEWS`, `GOOGLE_NEWS`, `BAIDU_NEWS`, `NAVER_STOCK`
 
-### 3.3 URL 큐 / 오류 모니터링 (`/urls`)
+### 3.3 실패 URL 재투입 (`/urls`)
 
 실패 상태(`failed_transient`, `failed_permanent`, `dead`) URL 을 조회하고 재투입한다.
 
 | 기능 | 경로 | 설명 |
 |---|---|---|
-| 전체 상태 요약 | `GET /urls` 상단 | 전체 status 건수 카드 |
-| 실패 URL 목록 | `GET /urls` 하단 | status / source_type / host 필터, 50건/페이지 |
+| 전체 상태 요약 | `GET /urls` 상단 | 전체 status 건수 카드 (discovered / extracting / stored 는 정보 표시만) |
+| 실패 URL 목록 | `GET /urls` 하단 | `failed_transient` / `failed_permanent` / `dead` 필터, source_type / host 추가 필터, 50건/페이지 |
 | 단건 재투입 | `POST /urls/{id}/reinject` | `status=discovered`, `attempt_count=0`, error 컬럼 초기화 |
-| 일괄 재투입 | `POST /urls/reinject-bulk` | 특정 status 전체 재투입 |
+| 일괄 재투입 | `POST /urls/reinject-bulk` | 특정 실패 status 전체 재투입 |
 
 **재투입 동작**: `status`, `attempt_count`, `last_error_code`, `last_error_msg`, `next_retry_at` 초기화. keyword-crawler extraction worker 가 다음 루프에서 자동 처리.
+
+> 상단 카드 중 `failed_transient` / `failed_permanent` / `dead` 만 클릭 시 해당 status 필터가 적용된다. `discovered` / `extracting` / `stored` 카드는 현황 표시 전용이며 클릭해도 목록이 변하지 않는다.
 
 ### 3.4 도메인 규칙 관리 (`/domains`)
 
@@ -217,7 +219,9 @@ Starlette 미들웨어는 추가 역순으로 실행된다.
 | `SESSION_SECRET` | (필수) | 세션 쿠키 서명 키 (운영 환경에서 반드시 교체) |
 | `LOG_DIR` | `./logs` | 로그 디렉토리 |
 | `LOG_LEVEL` | `INFO` | 로그 레벨 |
-| `LOG_ROTATION` | `daily` | 로그 로테이션 방식 |
+| `LOG_ROTATION` | `daily` | 로그 로테이션 방식 (`daily` \| `size`) |
+| `LOG_RETAIN_DAYS` | `30` | daily 모드: 보관 일수 |
+| `LOG_BACKUP_COUNT` | `10` | size 모드: 보관 파일 수 |
 
 ---
 
