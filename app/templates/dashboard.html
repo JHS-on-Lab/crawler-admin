@@ -2,18 +2,18 @@
 
 {% block title %}대시보드 — Crawler Admin{% endblock %}
 {% block page_title %}대시보드{% endblock %}
-{% block page_subtitle %}URL 큐 현황 및 수집 요약{% endblock %}
+{% block page_subtitle %}URL 큐 현황 및 수집 통계{% endblock %}
 
 {% block content %}
 
 {# ── URL Status Cards ── #}
 {% set status_meta = [
-  ("discovered",       "발견됨",    "bi-circle-fill",      "#2563eb", "#eff6ff"),
-  ("extracting",       "추출 중",   "bi-arrow-repeat",     "#d97706", "#fffbeb"),
-  ("stored",           "저장 완료", "bi-check-circle-fill","#16a34a", "#f0fdf4"),
-  ("failed_transient", "일시 실패", "bi-exclamation-circle-fill","#ea580c","#fff7ed"),
-  ("failed_permanent", "영구 실패", "bi-x-circle-fill",    "#dc2626", "#fef2f2"),
-  ("dead",             "폐기",      "bi-slash-circle-fill","#64748b", "#f8fafc"),
+  ("discovered",       "발견됨",    "bi-circle-fill",           "#2563eb", "#eff6ff"),
+  ("extracting",       "추출 중",   "bi-arrow-repeat",          "#d97706", "#fffbeb"),
+  ("stored",           "저장 완료", "bi-check-circle-fill",     "#16a34a", "#f0fdf4"),
+  ("failed_transient", "일시 실패", "bi-exclamation-circle-fill","#ea580c", "#fff7ed"),
+  ("failed_permanent", "영구 실패", "bi-x-circle-fill",         "#dc2626", "#fef2f2"),
+  ("dead",             "폐기",      "bi-slash-circle-fill",     "#64748b", "#f8fafc"),
 ] %}
 <div class="row g-3 mb-4">
   {% for status, label, icon, color, bg in status_meta %}
@@ -34,8 +34,9 @@
 </div>
 
 <div class="row g-3">
+
   {# ── 소스별 키워드 현황 ── #}
-  <div class="col-lg-5">
+  <div class="col-lg-4">
     <div class="card h-100">
       <div class="card-header">
         <i class="bi bi-tags text-primary"></i> 소스별 키워드
@@ -80,61 +81,167 @@
     </div>
   </div>
 
-  {# ── 최근 수집 이력 ── #}
-  <div class="col-lg-7">
+  {# ── 일별 수집 통계 ── #}
+  <div class="col-lg-8">
     <div class="card h-100">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-journal-text text-primary"></i> 최근 수집 이력</span>
-        <a href="/logs" class="btn btn-sm btn-outline-secondary" style="font-size:0.75rem;">전체 보기</a>
+        <span><i class="bi bi-bar-chart-line text-primary"></i> 수집 통계</span>
+        <div class="d-flex align-items-center gap-2">
+          <form method="get" action="/" class="d-flex align-items-center gap-2 mb-0">
+            <input type="date" name="run_date" value="{{ run_date }}"
+                   max="{{ today }}"
+                   class="form-control form-control-sm" style="width:140px; font-size:0.78rem;"
+                   onchange="this.form.submit()">
+            {% if run_date != today %}
+            <a href="/" class="btn btn-sm btn-outline-secondary" style="font-size:0.75rem;">오늘</a>
+            {% endif %}
+          </form>
+          <a href="/logs" class="btn btn-sm btn-outline-secondary" style="font-size:0.75rem;">상세 로그</a>
+        </div>
       </div>
-      <div class="card-body p-0">
-        <table class="table table-hover mb-0">
+      <div class="card-body">
+
+        {# ── Discovery / Extraction 요약 카드 ── #}
+        <div class="row g-2 mb-3">
+          {# Discovery #}
+          <div class="col-md-6">
+            <div class="p-3 rounded" style="background:#f0f9ff; border:1px solid #bae6fd;">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="fw-semibold" style="font-size:0.8rem; color:#0369a1;">
+                  <i class="bi bi-search"></i> Discovery
+                </span>
+                <span class="text-muted" style="font-size:0.72rem;">
+                  {{ discovery_total.run_count }}회 실행
+                </span>
+              </div>
+              {% if discovery_total.run_count > 0 %}
+              <div class="d-flex gap-3">
+                <div class="text-center">
+                  <div style="font-size:1.25rem; font-weight:700; color:#0369a1;">
+                    {{ "{:,}".format(discovery_total.total_found) }}
+                  </div>
+                  <div class="text-muted" style="font-size:0.7rem;">발견</div>
+                </div>
+                <div class="text-center">
+                  <div style="font-size:1.25rem; font-weight:700; color:#16a34a;">
+                    {{ "{:,}".format(discovery_total.total_inserted) }}
+                  </div>
+                  <div class="text-muted" style="font-size:0.7rem;">신규 삽입</div>
+                </div>
+                <div class="text-center">
+                  <div style="font-size:1.25rem; font-weight:700; color:#64748b;">
+                    {{ "{:,}".format(discovery_total.total_skipped) }}
+                  </div>
+                  <div class="text-muted" style="font-size:0.7rem;">중복 스킵</div>
+                </div>
+              </div>
+              {% else %}
+              <div class="text-muted" style="font-size:0.8rem;">이 날짜에 실행 없음</div>
+              {% endif %}
+            </div>
+          </div>
+
+          {# Extraction #}
+          <div class="col-md-6">
+            {% set ext_fail_rate = (extraction_total.total_failed / extraction_total.total_attempted * 100) | round(1) if extraction_total.total_attempted > 0 else 0 %}
+            <div class="p-3 rounded" style="background:#f0fdf4; border:1px solid #bbf7d0;">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="fw-semibold" style="font-size:0.8rem; color:#15803d;">
+                  <i class="bi bi-file-earmark-text"></i> Extraction
+                </span>
+                <span class="text-muted" style="font-size:0.72rem;">
+                  {{ extraction_total.run_count }}회 실행
+                  {% if extraction_total.total_attempted > 0 %}
+                  &nbsp;·&nbsp;
+                  <span class="{% if ext_fail_rate >= 20 %}text-danger{% elif ext_fail_rate >= 5 %}text-warning{% else %}text-success{% endif %}">
+                    실패율 {{ ext_fail_rate }}%
+                  </span>
+                  {% endif %}
+                </span>
+              </div>
+              {% if extraction_total.run_count > 0 %}
+              <div class="d-flex gap-3">
+                <div class="text-center">
+                  <div style="font-size:1.25rem; font-weight:700; color:#15803d;">
+                    {{ "{:,}".format(extraction_total.total_attempted) }}
+                  </div>
+                  <div class="text-muted" style="font-size:0.7rem;">시도</div>
+                </div>
+                <div class="text-center">
+                  <div style="font-size:1.25rem; font-weight:700; color:#16a34a;">
+                    {{ "{:,}".format(extraction_total.total_success) }}
+                  </div>
+                  <div class="text-muted" style="font-size:0.7rem;">성공</div>
+                </div>
+                <div class="text-center">
+                  <div style="font-size:1.25rem; font-weight:700; color:#dc2626;">
+                    {{ "{:,}".format(extraction_total.total_failed) }}
+                  </div>
+                  <div class="text-muted" style="font-size:0.7rem;">실패</div>
+                </div>
+              </div>
+              {% else %}
+              <div class="text-muted" style="font-size:0.8rem;">이 날짜에 실행 없음</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        {# ── 소스별 breakdown ── #}
+        {% if discovery_rows or extraction_rows %}
+        <table class="table table-sm mb-0" style="font-size:0.78rem;">
           <thead>
             <tr>
-              <th>타입</th>
               <th>소스</th>
-              <th>키워드</th>
-              <th class="text-end">결과</th>
-              <th class="text-end">시각</th>
+              <th class="text-center">타입</th>
+              <th class="text-end">실행</th>
+              <th class="text-end">발견</th>
+              <th class="text-end">신규</th>
+              <th class="text-end">시도</th>
+              <th class="text-end">성공</th>
+              <th class="text-end">실패</th>
             </tr>
           </thead>
           <tbody>
-            {% for log in recent_logs %}
+            {% for r in discovery_rows %}
             <tr>
-              <td>
-                {% if log.run_type == 'discovery' %}
-                <span class="badge badge-discovered">discovery</span>
-                {% else %}
-                <span class="badge badge-stored">extraction</span>
-                {% endif %}
-              </td>
-              <td class="text-muted" style="font-size:0.75rem;">{{ log.source_type }}</td>
-              <td>
-                {% if log.display_name %}{{ log.display_name }}
-                {% elif log.keyword %}{{ log.keyword }}
-                {% else %}<span class="text-muted">—</span>{% endif %}
-              </td>
-              <td class="text-end" style="font-size:0.75rem;">
-                {% if log.run_type == 'discovery' %}
-                  <span class="text-success">+{{ log.urls_inserted or 0 }}</span>
-                  / {{ log.urls_found or 0 }}
-                {% else %}
-                  <span class="text-success">{{ log.urls_success or 0 }}</span>
-                  / {{ log.urls_attempted or 0 }}
-                {% endif %}
-              </td>
-              <td class="text-end text-muted" style="font-size:0.72rem;">
-                {{ log.started_at.strftime('%m/%d %H:%M') if log.started_at else '—' }}
+              <td class="text-muted">{{ r.source_type }}</td>
+              <td class="text-center"><span class="badge badge-discovered" style="font-size:0.65rem;">discovery</span></td>
+              <td class="text-end text-muted">{{ r.run_count }}</td>
+              <td class="text-end">{{ "{:,}".format(r.total_found or 0) }}</td>
+              <td class="text-end text-success">{{ "{:,}".format(r.total_inserted or 0) }}</td>
+              <td class="text-end text-muted">—</td>
+              <td class="text-end text-muted">—</td>
+              <td class="text-end text-muted">—</td>
+            </tr>
+            {% endfor %}
+            {% for r in extraction_rows %}
+            <tr>
+              <td class="text-muted">{{ r.source_type }}</td>
+              <td class="text-center"><span class="badge badge-stored" style="font-size:0.65rem;">extraction</span></td>
+              <td class="text-end text-muted">{{ r.run_count }}</td>
+              <td class="text-end text-muted">—</td>
+              <td class="text-end text-muted">—</td>
+              <td class="text-end">{{ "{:,}".format(r.total_attempted or 0) }}</td>
+              <td class="text-end text-success">{{ "{:,}".format(r.total_success or 0) }}</td>
+              <td class="text-end {% if (r.total_failed or 0) > 0 %}text-danger{% else %}text-muted{% endif %}">
+                {{ "{:,}".format(r.total_failed or 0) }}
               </td>
             </tr>
-            {% else %}
-            <tr><td colspan="5" class="text-center text-muted py-4">수집 이력 없음</td></tr>
             {% endfor %}
           </tbody>
         </table>
+        {% else %}
+        <div class="text-center text-muted py-3" style="font-size:0.85rem;">
+          <i class="bi bi-calendar-x d-block mb-1" style="font-size:1.2rem;"></i>
+          {{ run_date }} 수집 이력 없음
+        </div>
+        {% endif %}
+
       </div>
     </div>
   </div>
+
 </div>
 
 {% endblock %}
