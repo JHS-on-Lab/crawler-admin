@@ -30,8 +30,39 @@
           <th class="text-center">렌더 모드</th>
           <th class="text-center">규칙</th>
           <th class="text-end">지연(ms)</th>
-          <th class="text-end">성공률</th>
-          <th class="text-center">실패 수</th>
+          <th class="text-end">
+            성공률
+            <i class="bi bi-info-circle text-muted ms-1"
+               style="font-size:0.75rem; cursor:pointer;"
+               data-bs-toggle="popover"
+               data-bs-trigger="hover focus"
+               data-bs-html="true"
+               data-bs-placement="top"
+               data-bs-content="<div style='font-size:0.78rem; line-height:1.6;'>
+                 <b>지수이동평균 (EWA)</b><br>
+                 새값 = 이전값 × 0.9 + 결과 × 0.1<br>
+                 <span class='text-muted'>결과: 성공=1 / 실패=0</span><br>
+                 <hr class='my-1'>
+                 초기값: 성공→100% / 실패→0%<br>
+                 <span class='text-success'>■</span> 80%↑ &nbsp;
+                 <span class='text-warning'>■</span> 50%↑ &nbsp;
+                 <span class='text-danger'>■</span> 50% 미만
+               </div>"></i>
+          </th>
+          <th class="text-center">
+            실패 수
+            <i class="bi bi-info-circle text-muted ms-1"
+               style="font-size:0.75rem; cursor:pointer;"
+               data-bs-toggle="popover"
+               data-bs-trigger="hover focus"
+               data-bs-html="true"
+               data-bs-placement="top"
+               data-bs-content="<div style='font-size:0.78rem; line-height:1.6;'>
+                 <b>연속 실패 횟수</b><br>
+                 실패 시 +1 / 성공 시 0으로 리셋<br>
+                 <span class='text-muted'>쿨다운 해제 시에도 0 리셋</span>
+               </div>"></i>
+          </th>
           <th>쿨다운</th>
           <th class="text-end">액션</th>
         </tr>
@@ -170,4 +201,12 @@
   </div>
 </div>
 
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll('[data-bs-toggle="popover"]').forEach(el => {
+    new bootstrap.Popover(el, { sanitize: false });
+  });
+</script>
 {% endblock %}
