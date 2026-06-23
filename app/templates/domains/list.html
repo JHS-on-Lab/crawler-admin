@@ -68,9 +68,9 @@
           <td class="text-end text-muted">{{ d.crawl_delay_ms or '기본' }}</td>
           <td class="text-end">
             {% if d.success_rate is not none %}
-            {% set rate = d.success_rate | round(1) %}
-            <span class="{% if rate >= 80 %}text-success{% elif rate >= 50 %}text-warning{% else %}text-danger{% endif %} fw-medium">
-              {{ rate }}%
+            {% set pct = (d.success_rate * 100) | round(1) %}
+            <span class="{% if pct >= 80 %}text-success{% elif pct >= 50 %}text-warning{% else %}text-danger{% endif %} fw-medium">
+              {{ pct }}%
             </span>
             {% else %}
             <span class="text-muted">—</span>
