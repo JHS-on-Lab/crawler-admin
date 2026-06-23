@@ -52,9 +52,11 @@ ADMIN_PASSWORD = _env("ADMIN_PASSWORD", "")
 SESSION_SECRET = _env("SESSION_SECRET", "change-me")
 
 # Logging
-LOG_DIR      = _env("LOG_DIR", "./logs")
-LOG_LEVEL    = _env("LOG_LEVEL", "INFO")
-LOG_ROTATION = _env("LOG_ROTATION", "daily")
+LOG_DIR          = _env("LOG_DIR", "./logs")
+LOG_LEVEL        = _env("LOG_LEVEL", "INFO")
+LOG_ROTATION     = _env("LOG_ROTATION", "daily")
+LOG_RETAIN_DAYS  = _env_int("LOG_RETAIN_DAYS", 30)
+LOG_BACKUP_COUNT = _env_int("LOG_BACKUP_COUNT", 10)
 
 
 # ---------------------------------------------------------------------------

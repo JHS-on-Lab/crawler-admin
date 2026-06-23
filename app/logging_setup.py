@@ -53,11 +53,11 @@ _DATE_FMT = "%Y-%m-%dT%H:%M:%SZ"
 def _make_handler(path: Path, level: int) -> logging.Handler:
     if config.LOG_ROTATION == "daily":
         h: logging.Handler = logging.handlers.TimedRotatingFileHandler(
-            path, when="midnight", backupCount=30, encoding="utf-8", utc=True
+            path, when="midnight", backupCount=config.LOG_RETAIN_DAYS, encoding="utf-8", utc=True
         )
     else:
         h = logging.handlers.RotatingFileHandler(
-            path, maxBytes=100 * 1024 * 1024, backupCount=10, encoding="utf-8"
+            path, maxBytes=100 * 1024 * 1024, backupCount=config.LOG_BACKUP_COUNT, encoding="utf-8"
         )
     h.setLevel(level)
     return h
