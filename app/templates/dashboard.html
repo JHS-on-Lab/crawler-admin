@@ -111,7 +111,7 @@
                   <i class="bi bi-search"></i> Discovery
                 </span>
                 <span class="text-muted" style="font-size:0.72rem;">
-                  {{ discovery_total.run_count }}회 실행
+                  키워드 {{ discovery_total.run_count }}개 처리
                 </span>
               </div>
               {% if discovery_total.run_count > 0 %}
@@ -149,17 +149,13 @@
                 <span class="fw-semibold" style="font-size:0.8rem; color:#15803d;">
                   <i class="bi bi-file-earmark-text"></i> Extraction
                 </span>
-                <span class="text-muted" style="font-size:0.72rem;">
-                  {{ extraction_total.run_count }}회 실행
-                  {% if extraction_total.total_attempted > 0 %}
-                  &nbsp;·&nbsp;
-                  <span class="{% if ext_fail_rate >= 20 %}text-danger{% elif ext_fail_rate >= 5 %}text-warning{% else %}text-success{% endif %}">
-                    실패율 {{ ext_fail_rate }}%
-                  </span>
-                  {% endif %}
+                {% if extraction_total.total_attempted > 0 %}
+                <span class="{% if ext_fail_rate >= 20 %}text-danger{% elif ext_fail_rate >= 5 %}text-warning{% else %}text-success{% endif %}" style="font-size:0.72rem;">
+                  실패율 {{ ext_fail_rate }}%
                 </span>
+                {% endif %}
               </div>
-              {% if extraction_total.run_count > 0 %}
+              {% if extraction_total.total_attempted > 0 %}
               <div class="d-flex gap-3">
                 <div class="text-center">
                   <div style="font-size:1.25rem; font-weight:700; color:#15803d;">
@@ -189,48 +185,78 @@
 
         {# ── 소스별 breakdown ── #}
         {% if discovery_rows or extraction_rows %}
-        <table class="table table-sm mb-0" style="font-size:0.78rem;">
-          <thead>
-            <tr>
-              <th>소스</th>
-              <th class="text-center">타입</th>
-              <th class="text-end">실행</th>
-              <th class="text-end">발견</th>
-              <th class="text-end">신규</th>
-              <th class="text-end">시도</th>
-              <th class="text-end">성공</th>
-              <th class="text-end">실패</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for r in discovery_rows %}
-            <tr>
-              <td class="text-muted">{{ r.source_type }}</td>
-              <td class="text-center"><span class="badge badge-discovered" style="font-size:0.65rem;">discovery</span></td>
-              <td class="text-end text-muted">{{ r.run_count }}</td>
-              <td class="text-end">{{ "{:,}".format(r.total_found or 0) }}</td>
-              <td class="text-end text-success">{{ "{:,}".format(r.total_inserted or 0) }}</td>
-              <td class="text-end text-muted">—</td>
-              <td class="text-end text-muted">—</td>
-              <td class="text-end text-muted">—</td>
-            </tr>
-            {% endfor %}
-            {% for r in extraction_rows %}
-            <tr>
-              <td class="text-muted">{{ r.source_type }}</td>
-              <td class="text-center"><span class="badge badge-stored" style="font-size:0.65rem;">extraction</span></td>
-              <td class="text-end text-muted">{{ r.run_count }}</td>
-              <td class="text-end text-muted">—</td>
-              <td class="text-end text-muted">—</td>
-              <td class="text-end">{{ "{:,}".format(r.total_attempted or 0) }}</td>
-              <td class="text-end text-success">{{ "{:,}".format(r.total_success or 0) }}</td>
-              <td class="text-end {% if (r.total_failed or 0) > 0 %}text-danger{% else %}text-muted{% endif %}">
-                {{ "{:,}".format(r.total_failed or 0) }}
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+        <div class="row g-2">
+
+          {# Discovery breakdown #}
+          {% if discovery_rows %}
+          <div class="col-md-6">
+            <div style="font-size:0.72rem; color:#0369a1; font-weight:600; margin-bottom:4px;">
+              <i class="bi bi-search"></i> Discovery — 소스별
+            </div>
+            <table class="table table-sm mb-0" style="font-size:0.78rem;">
+              <thead>
+                <tr>
+                  <th>소스</th>
+                  <th class="text-end">키워드</th>
+                  <th class="text-end">발견</th>
+                  <th class="text-end">신규</th>
+                  <th class="text-end">스킵</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in discovery_rows %}
+                <tr>
+                  <td class="text-muted">{{ r.source_type }}</td>
+                  <td class="text-end text-muted">{{ r.run_count }}</td>
+                  <td class="text-end">{{ "{:,}".format(r.total_found or 0) }}</td>
+                  <td class="text-end text-success">{{ "{:,}".format(r.total_inserted or 0) }}</td>
+                  <td class="text-end text-muted">{{ "{:,}".format(r.total_skipped or 0) }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% endif %}
+
+          {# Extraction breakdown #}
+          {% if extraction_rows %}
+          <div class="col-md-6">
+            <div style="font-size:0.72rem; color:#15803d; font-weight:600; margin-bottom:4px;">
+              <i class="bi bi-file-earmark-text"></i> Extraction — 소스별
+            </div>
+            <table class="table table-sm mb-0" style="font-size:0.78rem;">
+              <thead>
+                <tr>
+                  <th>소스</th>
+                  <th class="text-end">시도</th>
+                  <th class="text-end">성공</th>
+                  <th class="text-end">실패</th>
+                  <th class="text-end">실패율</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in extraction_rows %}
+                {% set r_fail_rate = (r.total_failed / r.total_attempted * 100) | round(1) if (r.total_attempted or 0) > 0 else 0 %}
+                <tr>
+                  <td class="text-muted">{{ r.source_type }}</td>
+                  <td class="text-end">{{ "{:,}".format(r.total_attempted or 0) }}</td>
+                  <td class="text-end text-success">{{ "{:,}".format(r.total_success or 0) }}</td>
+                  <td class="text-end {% if (r.total_failed or 0) > 0 %}text-danger{% else %}text-muted{% endif %}">
+                    {{ "{:,}".format(r.total_failed or 0) }}
+                  </td>
+                  <td class="text-end">
+                    <span class="{% if r_fail_rate >= 20 %}text-danger{% elif r_fail_rate >= 5 %}text-warning{% else %}text-muted{% endif %}">
+                      {{ r_fail_rate }}%
+                    </span>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% endif %}
+
+        </div>
         {% else %}
         <div class="text-center text-muted py-3" style="font-size:0.85rem;">
           <i class="bi bi-calendar-x d-block mb-1" style="font-size:1.2rem;"></i>
