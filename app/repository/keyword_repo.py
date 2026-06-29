@@ -5,7 +5,20 @@ from __future__ import annotations
 from sqlalchemy import Connection, text
 
 
-def list_keywords(conn: Connection, source_type: str | None = None, enabled: str | None = None) -> list:
+_SORT_COLS = {
+    "id", "keyword", "source_type", "priority", "interval_seconds",
+    "next_discover_at", "enabled",
+}
+
+
+def list_keywords(
+    conn: Connection,
+    source_type: str | None = None,
+    enabled: str | None = None,
+    search: str | None = None,
+    sort_by: str | None = None,
+    sort_order: str = "asc",
+) -> list:
     q = "SELECT * FROM t_keyword WHERE 1=1"
     params: dict = {}
     if source_type:
@@ -14,7 +27,14 @@ def list_keywords(conn: Connection, source_type: str | None = None, enabled: str
     if enabled is not None:
         q += " AND enabled = :enabled"
         params["enabled"] = 1 if enabled == "true" else 0
-    q += " ORDER BY source_type, priority DESC, keyword"
+    if search:
+        q += " AND (keyword LIKE :search OR display_name LIKE :search)"
+        params["search"] = f"%{search}%"
+    if sort_by and sort_by in _SORT_COLS:
+        direction = "DESC" if sort_order == "desc" else "ASC"
+        q += f" ORDER BY {sort_by} {direction}"
+    else:
+        q += " ORDER BY source_type, priority DESC, keyword"
     return conn.execute(text(q), params).mappings().all()
 
 

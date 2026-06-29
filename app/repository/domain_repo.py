@@ -7,13 +7,35 @@ import json
 from sqlalchemy import Connection, text
 
 
-def list_domains(conn: Connection, search: str | None = None) -> list:
+_SORT_COLS = {
+    "host", "render_mode", "crawl_delay_ms", "success_rate",
+    "recent_fail_count", "cooldown_until", "rules_enabled",
+}
+
+
+def list_domains(
+    conn: Connection,
+    search: str | None = None,
+    rules_filter: str | None = None,
+    sort_by: str | None = None,
+    sort_order: str = "asc",
+) -> list:
     q = "SELECT * FROM t_domain WHERE 1=1"
     params: dict = {}
     if search:
         q += " AND host LIKE :search"
         params["search"] = f"%{search}%"
-    q += " ORDER BY recent_fail_count DESC, host"
+    if rules_filter == "active":
+        q += " AND rules_json IS NOT NULL AND rules_enabled = 1"
+    elif rules_filter == "inactive":
+        q += " AND rules_json IS NOT NULL AND rules_enabled = 0"
+    elif rules_filter == "none":
+        q += " AND rules_json IS NULL"
+    if sort_by and sort_by in _SORT_COLS:
+        direction = "DESC" if sort_order == "desc" else "ASC"
+        q += f" ORDER BY {sort_by} {direction}"
+    else:
+        q += " ORDER BY recent_fail_count DESC, host"
     return conn.execute(text(q), params).mappings().all()
 
 

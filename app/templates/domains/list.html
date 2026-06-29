@@ -6,15 +6,24 @@
 
 {% block content %}
 
-{# ── Search Bar ── #}
+{# ── Filter Bar ── #}
 <form method="get" action="/domains">
+  <input type="hidden" name="sort" value="{{ sort_by }}">
+  <input type="hidden" name="order" value="{{ sort_order }}">
   <div class="filter-bar mb-3">
     <i class="bi bi-search text-muted"></i>
     <input type="text" name="search" class="form-control form-control-sm"
-           style="width:280px;" placeholder="도메인 검색..." value="{{ search }}">
+           style="width:240px;" placeholder="도메인 검색..." value="{{ search }}">
+    <select name="rules_filter" class="form-select form-select-sm" style="width:auto; font-size:0.8rem;">
+      <option value=""         {% if not rules_filter        %}selected{% endif %}>전체 규칙</option>
+      <option value="active"   {% if rules_filter == 'active'   %}selected{% endif %}>규칙 활성</option>
+      <option value="inactive" {% if rules_filter == 'inactive' %}selected{% endif %}>규칙 비활성</option>
+      <option value="none"     {% if rules_filter == 'none'     %}selected{% endif %}>규칙 없음</option>
+    </select>
     <button type="submit" class="btn btn-sm btn-primary" style="font-size:0.78rem;">검색</button>
-    {% if search %}
-    <a href="/domains" class="btn btn-sm btn-outline-secondary" style="font-size:0.78rem;">초기화</a>
+    {% if search or rules_filter %}
+    <a href="/domains?sort={{ sort_by }}&order={{ sort_order }}"
+       class="btn btn-sm btn-outline-secondary" style="font-size:0.78rem;">초기화</a>
     {% endif %}
     <span class="ms-auto text-muted" style="font-size:0.78rem;">총 {{ domains|length }}개 도메인</span>
   </div>
@@ -24,14 +33,79 @@
 <div class="card">
   <div class="card-body p-0">
     <table class="table table-hover mb-0">
+      {% macro sort_link(col, label) %}
+        {% set next_order = "desc" if (sort_by == col and sort_order == "asc") else "asc" %}
+        {% set href = "/domains?search=" ~ search ~ "&rules_filter=" ~ rules_filter ~ "&sort=" ~ col ~ "&order=" ~ next_order %}
+        <a href="{{ href }}" class="text-decoration-none text-reset d-inline-flex align-items-center gap-1">
+          {{ label }}
+          {% if sort_by == col %}
+            <i class="bi bi-caret-{{ 'down' if sort_order == 'desc' else 'up' }}-fill" style="font-size:0.65rem;"></i>
+          {% else %}
+            <i class="bi bi-arrow-down-up text-muted" style="font-size:0.65rem; opacity:0.4;"></i>
+          {% endif %}
+        </a>
+      {% endmacro %}
       <thead>
         <tr>
-          <th>도메인</th>
-          <th class="text-center">렌더 모드</th>
-          <th class="text-center">규칙</th>
-          <th class="text-end">지연(ms)</th>
+          <th>
+            {{ sort_link("host", "도메인") }}
+            <i class="bi bi-info-circle text-muted ms-1"
+               style="font-size:0.75rem; cursor:pointer;"
+               data-bs-toggle="popover"
+               data-bs-trigger="hover focus"
+               data-bs-html="true"
+               data-bs-placement="top"
+               data-bs-content="<div style='font-size:0.78rem; line-height:1.6;'>
+                 <b>수집 대상 도메인 호스트</b><br>
+                 <span class='text-muted'>하단 소자는 마지막으로<br>설정을 변경한 워커/사용자 ID</span>
+               </div>"></i>
+          </th>
+          <th class="text-center">
+            {{ sort_link("render_mode", "렌더 모드") }}
+            <i class="bi bi-info-circle text-muted ms-1"
+               style="font-size:0.75rem; cursor:pointer;"
+               data-bs-toggle="popover"
+               data-bs-trigger="hover focus"
+               data-bs-html="true"
+               data-bs-placement="top"
+               data-bs-content="<div style='font-size:0.78rem; line-height:1.6;'>
+                 <b>HTTP 요청 방식</b><br>
+                 <b>static</b> — 일반 HTTP GET (기본, 빠름)<br>
+                 <b>headless</b> — Chromium JS 렌더링<br>
+                 <b>headless+iframe</b> — iframe 내부까지 접근
+               </div>"></i>
+          </th>
+          <th class="text-center">
+            {{ sort_link("rules_enabled", "규칙") }}
+            <i class="bi bi-info-circle text-muted ms-1"
+               style="font-size:0.75rem; cursor:pointer;"
+               data-bs-toggle="popover"
+               data-bs-trigger="hover focus"
+               data-bs-html="true"
+               data-bs-placement="top"
+               data-bs-content="<div style='font-size:0.78rem; line-height:1.6;'>
+                 <b>CSS 선택자 추출 규칙</b><br>
+                 <span class='text-success'>활성</span> — 기본 추출기(trafilatura)보다 우선 적용<br>
+                 <span class='text-danger'>비활성</span> — 규칙 있어도 기본 추출기 사용<br>
+                 <span class='text-muted'>— — 규칙 미등록</span>
+               </div>"></i>
+          </th>
           <th class="text-end">
-            성공률
+            {{ sort_link("crawl_delay_ms", "지연(ms)") }}
+            <i class="bi bi-info-circle text-muted ms-1"
+               style="font-size:0.75rem; cursor:pointer;"
+               data-bs-toggle="popover"
+               data-bs-trigger="hover focus"
+               data-bs-html="true"
+               data-bs-placement="top"
+               data-bs-content="<div style='font-size:0.78rem; line-height:1.6;'>
+                 <b>연속 요청 간 최소 대기 시간</b><br>
+                 같은 도메인에 대한 요청 사이에<br>최소 이 시간(ms)만큼 대기<br>
+                 <span class='text-muted'>기본 — DEFAULT_CRAWL_DELAY_MS 적용</span>
+               </div>"></i>
+          </th>
+          <th class="text-end">
+            {{ sort_link("success_rate", "성공률") }}
             <i class="bi bi-info-circle text-muted ms-1"
                style="font-size:0.75rem; cursor:pointer;"
                data-bs-toggle="popover"
@@ -50,7 +124,7 @@
                </div>"></i>
           </th>
           <th class="text-center">
-            실패 수
+            {{ sort_link("recent_fail_count", "실패 수") }}
             <i class="bi bi-info-circle text-muted ms-1"
                style="font-size:0.75rem; cursor:pointer;"
                data-bs-toggle="popover"
@@ -63,7 +137,21 @@
                  <span class='text-muted'>쿨다운 해제 시에도 0 리셋</span>
                </div>"></i>
           </th>
-          <th>쿨다운</th>
+          <th>
+            {{ sort_link("cooldown_until", "쿨다운") }}
+            <i class="bi bi-info-circle text-muted ms-1"
+               style="font-size:0.75rem; cursor:pointer;"
+               data-bs-toggle="popover"
+               data-bs-trigger="hover focus"
+               data-bs-html="true"
+               data-bs-placement="top"
+               data-bs-content="<div style='font-size:0.78rem; line-height:1.6;'>
+                 <b>요청 차단 종료 시각</b><br>
+                 429(Rate Limit) · 403(차단) 응답 수신 시 설정<br>
+                 이 시각까지 해당 도메인 URL은 추출 시도 없음<br>
+                 <span class='text-muted'>행이 노란색으로 강조 표시됨</span>
+               </div>"></i>
+          </th>
           <th class="text-end">액션</th>
         </tr>
       </thead>

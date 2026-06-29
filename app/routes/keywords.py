@@ -21,12 +21,20 @@ async def list_keywords(
     request: Request,
     source_type: str = "",
     enabled: str = "",
+    search: str = "",
+    sort: str = "",
+    order: str = "asc",
 ):
+    if order not in ("asc", "desc"):
+        order = "asc"
     with get_engine().connect() as conn:
         keywords = keyword_repo.list_keywords(
             conn,
             source_type=source_type or None,
             enabled=enabled or None,
+            search=search or None,
+            sort_by=sort or None,
+            sort_order=order,
         )
         counts = keyword_repo.get_source_type_counts(conn)
 
@@ -39,6 +47,9 @@ async def list_keywords(
         "source_types": SOURCE_TYPES,
         "filter_source": source_type,
         "filter_enabled": enabled,
+        "search": search,
+        "sort_by": sort,
+        "sort_order": order,
         "flash": flash,
     })
 

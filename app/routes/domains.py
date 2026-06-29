@@ -17,9 +17,23 @@ def _flash(request: Request, msg: str, level: str = "success") -> None:
 
 
 @router.get("")
-async def list_domains(request: Request, search: str = ""):
+async def list_domains(
+    request: Request,
+    search: str = "",
+    rules_filter: str = "",
+    sort: str = "",
+    order: str = "asc",
+):
+    if order not in ("asc", "desc"):
+        order = "asc"
     with get_engine().connect() as conn:
-        domains = domain_repo.list_domains(conn, search=search or None)
+        domains = domain_repo.list_domains(
+            conn,
+            search=search or None,
+            rules_filter=rules_filter or None,
+            sort_by=sort or None,
+            sort_order=order,
+        )
 
     flash = request.session.pop("flash", None)
     return templates.TemplateResponse("domains/list.html", {
@@ -27,6 +41,9 @@ async def list_domains(request: Request, search: str = ""):
         "active_page": "domains",
         "domains": domains,
         "search": search,
+        "rules_filter": rules_filter,
+        "sort_by": sort,
+        "sort_order": order,
         "flash": flash,
     })
 

@@ -77,8 +77,11 @@
           </td>
           <td style="font-size:0.75rem; white-space:nowrap;">{{ log.source_type or '—' }}</td>
           <td style="font-size:0.78rem;">
-            {% if log.display_name %}{{ log.display_name }}
-            {% elif log.keyword %}{{ log.keyword }}
+            {% if log.keyword %}
+            <div class="fw-medium">{{ log.keyword }}</div>
+            {% if log.display_name %}
+            <div class="text-muted" style="font-size:0.72rem;">{{ log.display_name }}</div>
+            {% endif %}
             {% else %}<span class="text-muted">—</span>{% endif %}
           </td>
           <td class="text-muted" style="font-size:0.75rem;">{{ log.worker_id or '—' }}</td>

@@ -14,12 +14,13 @@
 
 {# ── 소스 필터 탭 ── #}
 <div class="d-flex gap-2 mb-3 flex-wrap">
-  <a href="/keywords" class="btn btn-sm {% if not filter_source %}btn-dark{% else %}btn-outline-secondary{% endif %}"
+  <a href="/keywords?enabled={{ filter_enabled }}&search={{ search }}&sort={{ sort_by }}&order={{ sort_order }}"
+     class="btn btn-sm {% if not filter_source %}btn-dark{% else %}btn-outline-secondary{% endif %}"
      style="font-size:0.78rem;">
     전체
   </a>
   {% for row in counts %}
-  <a href="/keywords?source_type={{ row.source_type }}"
+  <a href="/keywords?source_type={{ row.source_type }}&enabled={{ filter_enabled }}&search={{ search }}&sort={{ sort_by }}&order={{ sort_order }}"
      class="btn btn-sm {% if filter_source == row.source_type %}btn-dark{% else %}btn-outline-secondary{% endif %}"
      style="font-size:0.78rem;">
     {{ row.source_type }}
@@ -28,30 +29,56 @@
     </span>
   </a>
   {% endfor %}
+</div>
 
-  <div class="ms-auto d-flex align-items-center gap-2">
-    <select class="form-select form-select-sm" style="width:auto;font-size:0.78rem;"
-            onchange="location.href='/keywords?source_type={{ filter_source }}&enabled='+this.value">
+{# ── 검색 / 상태 필터 바 ── #}
+<form method="get" action="/keywords">
+  <input type="hidden" name="source_type" value="{{ filter_source }}">
+  <input type="hidden" name="sort" value="{{ sort_by }}">
+  <input type="hidden" name="order" value="{{ sort_order }}">
+  <div class="filter-bar mb-3">
+    <i class="bi bi-search text-muted"></i>
+    <input type="text" name="search" class="form-control form-control-sm"
+           style="width:260px;" placeholder="키워드 / display name 검색..." value="{{ search }}">
+    <select name="enabled" class="form-select form-select-sm" style="width:auto; font-size:0.8rem;">
       <option value="" {% if not filter_enabled %}selected{% endif %}>전체 상태</option>
       <option value="true"  {% if filter_enabled=='true'  %}selected{% endif %}>활성만</option>
       <option value="false" {% if filter_enabled=='false' %}selected{% endif %}>비활성만</option>
     </select>
+    <button type="submit" class="btn btn-sm btn-primary" style="font-size:0.78rem;">검색</button>
+    {% if search or filter_enabled %}
+    <a href="/keywords?source_type={{ filter_source }}&sort={{ sort_by }}&order={{ sort_order }}"
+       class="btn btn-sm btn-outline-secondary" style="font-size:0.78rem;">초기화</a>
+    {% endif %}
+    <span class="ms-auto text-muted" style="font-size:0.78rem;">총 {{ keywords|length }}개</span>
   </div>
-</div>
+</form>
 
 {# ── 키워드 테이블 ── #}
 <div class="card">
   <div class="card-body p-0">
     <table class="table table-hover mb-0">
+      {% macro sort_link(col, label, cls="") %}
+        {% set next_order = "asc" if (sort_by == col and sort_order == "asc") else "desc" if sort_by == col else "asc" %}
+        {% set href = "/keywords?source_type=" ~ filter_source ~ "&enabled=" ~ filter_enabled ~ "&search=" ~ search ~ "&sort=" ~ col ~ "&order=" ~ next_order %}
+        <a href="{{ href }}" class="text-decoration-none text-reset d-inline-flex align-items-center gap-1 {{ cls }}">
+          {{ label }}
+          {% if sort_by == col %}
+            <i class="bi bi-caret-{{ 'down' if sort_order == 'desc' else 'up' }}-fill" style="font-size:0.65rem;"></i>
+          {% else %}
+            <i class="bi bi-arrow-down-up text-muted" style="font-size:0.65rem; opacity:0.4;"></i>
+          {% endif %}
+        </a>
+      {% endmacro %}
       <thead>
         <tr>
-          <th style="width:3rem;">ID</th>
-          <th>키워드</th>
-          <th>소스</th>
-          <th>우선순위</th>
-          <th>주기</th>
-          <th>다음 수집</th>
-          <th>상태</th>
+          <th style="width:3rem;">{{ sort_link("id", "ID") }}</th>
+          <th>{{ sort_link("keyword", "키워드") }}</th>
+          <th>{{ sort_link("source_type", "소스") }}</th>
+          <th>{{ sort_link("priority", "우선순위") }}</th>
+          <th>{{ sort_link("interval_seconds", "주기") }}</th>
+          <th>{{ sort_link("next_discover_at", "다음 수집") }}</th>
+          <th>{{ sort_link("enabled", "상태") }}</th>
           <th class="text-end">액션</th>
         </tr>
       </thead>
