@@ -59,7 +59,7 @@
   <div class="card-body p-0">
     <table class="table table-hover mb-0">
       {% macro sort_link(col, label, cls="") %}
-        {% set next_order = "asc" if (sort_by == col and sort_order == "asc") else "desc" if sort_by == col else "asc" %}
+        {% set next_order = "desc" if (sort_by == col and sort_order == "asc") else "asc" %}
         {% set href = "/keywords?source_type=" ~ filter_source ~ "&enabled=" ~ filter_enabled ~ "&search=" ~ search ~ "&sort=" ~ col ~ "&order=" ~ next_order %}
         <a href="{{ href }}" class="text-decoration-none text-reset d-inline-flex align-items-center gap-1 {{ cls }}">
           {{ label }}

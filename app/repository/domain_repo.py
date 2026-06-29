@@ -7,10 +7,26 @@ import json
 from sqlalchemy import Connection, text
 
 
-_SORT_COLS = {
-    "host", "render_mode", "crawl_delay_ms", "success_rate",
-    "recent_fail_count", "cooldown_until", "rules_enabled",
+# NOT NULL 컬럼 — 직접 정렬 안전
+_SORT_COLS = {"host", "recent_fail_count"}
+
+# rules_enabled: rules_json NULL 행도 DEFAULT 1이라 CASE로 3단계 구분
+_RULES_SORT_EXPR = (
+    "CASE WHEN rules_json IS NULL THEN 0 "
+    "WHEN rules_enabled = 0 THEN 1 "
+    "ELSE 2 END"
+)
+
+# render_mode: NULL은 'static'과 동일하게 표시되므로 COALESCE로 묶어서 정렬
+_COALESCE_SORT = {
+    "render_mode": "COALESCE(render_mode, 'static')",
 }
+
+# NULL이 항상 마지막에 와야 하는 컬럼 (NULL = 데이터 없음 / 기본값)
+#   crawl_delay_ms: NULL = "기본값" — 0ms보다 앞에 정렬되면 혼란
+#   success_rate:   NULL = 수집 이력 없음 — 0%보다 앞에 정렬되면 혼란
+#   cooldown_until: NULL = 쿨다운 없음 — 쿨다운 중인 행이 앞에 와야 자연스러움
+_NULL_LAST_COLS = {"crawl_delay_ms", "success_rate", "cooldown_until"}
 
 
 def list_domains(
@@ -31,8 +47,14 @@ def list_domains(
         q += " AND rules_json IS NOT NULL AND rules_enabled = 0"
     elif rules_filter == "none":
         q += " AND rules_json IS NULL"
-    if sort_by and sort_by in _SORT_COLS:
-        direction = "DESC" if sort_order == "desc" else "ASC"
+    direction = "DESC" if sort_order == "desc" else "ASC"
+    if sort_by == "rules_enabled":
+        q += f" ORDER BY {_RULES_SORT_EXPR} {direction}"
+    elif sort_by in _COALESCE_SORT:
+        q += f" ORDER BY {_COALESCE_SORT[sort_by]} {direction}"
+    elif sort_by in _NULL_LAST_COLS:
+        q += f" ORDER BY ISNULL({sort_by}), {sort_by} {direction}"
+    elif sort_by and sort_by in _SORT_COLS:
         q += f" ORDER BY {sort_by} {direction}"
     else:
         q += " ORDER BY recent_fail_count DESC, host"
