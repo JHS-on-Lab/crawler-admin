@@ -6,7 +6,7 @@
 crawler-admin
 ──────────────────────────────────────────
 브라우저로 접속하는 내부 관리 웹 앱.
-keyword-crawler 와 동일한 MySQL DB 를 공유한다.
+discovery-worker / extraction-worker 와 동일한 MySQL DB 를 공유한다.
 
 주요 작업:
   키워드 등록 / 수정 / 활성화     → t_keyword
@@ -66,7 +66,7 @@ docker stop crawler-admin
 ## 3. 환경변수 (`.env`)
 
 ```dotenv
-# DB 접속 (keyword-crawler 와 동일한 RDS)
+# DB 접속 (discovery-worker / extraction-worker 와 동일한 RDS)
 RDS_HOST=
 RDS_PORT=3306
 RDS_USER=
@@ -105,7 +105,7 @@ LOG_BACKUP_COUNT=10    # size 모드: 보관 파일 수
 ### 키워드 즉시 수집 예약
 
 웹 UI의 키워드 목록 → "즉시 수집" 버튼.
-`next_discover_at = NULL` 로 업데이트되며 keyword-crawler discovery worker 의 다음 루프에서 처리된다.
+`next_discover_at = NULL` 로 업데이트되며 discovery-worker 의 다음 루프에서 처리된다.
 
 ### URL 재투입
 
@@ -118,12 +118,12 @@ LOG_BACKUP_COUNT=10    # size 모드: 보관 파일 수
 
 도메인 목록 → 쿨다운 중인 도메인의 "쿨다운 해제" 버튼.
 `cooldown_until = NULL`, `recent_fail_count = 0` 초기화.
-keyword-crawler 가 즉시 해당 도메인 URL 을 다시 처리한다.
+extraction-worker 가 즉시 해당 도메인 URL 을 다시 처리한다.
 
 ### 도메인 규칙 편집
 
 도메인 목록 → 도메인 행의 "규칙 편집" → JSON 직접 수정 → 저장.
-저장 전 JSON 유효성 자동 검증. keyword-crawler 가 TTL 캐시 만료(기본 60초) 후 자동 반영.
+저장 전 JSON 유효성 자동 검증. extraction-worker 가 TTL 캐시 만료(기본 60초) 후 자동 반영.
 
 규칙 JSON 형식:
 ```json
@@ -135,7 +135,7 @@ keyword-crawler 가 즉시 해당 도메인 URL 을 다시 처리한다.
 }
 ```
 
-자세한 규칙 문법은 `keyword-crawler/docs/domain-rule-guide.md` 참조.
+자세한 규칙 문법은 `extraction-worker/docs/domain-rule-guide.md` 참조.
 
 ---
 

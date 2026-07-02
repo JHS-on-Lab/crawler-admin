@@ -1,32 +1,32 @@
 # crawler-admin — 설계 문서
 
-> keyword-crawler · rescrape-dispatcher 운영을 위한 내부 웹 관리 도구.
+> discovery-worker · extraction-worker · rescrape-dispatcher 운영을 위한 내부 웹 관리 도구.
 > 명세에서 벗어나야 할 경우 이 문서를 먼저 갱신한다.
 
 ---
 
 ## 1. 개요
 
-keyword-crawler 가 사용하는 MySQL DB(`crawlerdb`)에 직접 접속해
+discovery-worker 및 extraction-worker 가 사용하는 MySQL DB(`crawlerdb`)에 직접 접속해
 키워드 등록·수집 오류 모니터링·도메인 규칙 관리·수집 이력 조회를 웹 UI로 제공하는
 **내부 운영 전용** 관리 도구다.
 
-- **대상 DB**: keyword-crawler 와 동일한 RDS (`crawlerdb` 스키마)
+- **대상 DB**: discovery-worker / extraction-worker 와 동일한 RDS (`crawlerdb` 스키마)
 - **접근 방식**: 별도 API 없이 DB 직접 읽기/쓰기
 - **인증**: 단일 관리자 계정 (환경변수 설정)
 - **배포**: Docker 컨테이너 단일 인스턴스
 
-### 1.1 세 프로젝트의 관계
+### 1.1 네 프로젝트의 관계
 
 ```
-keyword-crawler          rescrape-dispatcher       crawler-admin
-────────────────         ───────────────────       ─────────────────────
-포털 크롤링               Solr → t_crawl_url        t_keyword CRUD
-  → t_crawl_url                                     t_crawl_url 모니터링
-  → Solr                                            t_domain 규칙 편집
-                                                    t_collection_log 조회
-              ╲                   ╱                      │
-               └── MySQL (crawlerdb) ──────────────┘
+discovery-worker    extraction-worker    rescrape-dispatcher    crawler-admin
+────────────────    ─────────────────    ───────────────────    ─────────────────────
+URL 발견             본문 추출             Solr → t_crawl_url     t_keyword CRUD
+  → t_crawl_url       → t_crawl_url                               t_crawl_url 모니터링
+                       → Solr                                     t_domain 규칙 편집
+                                                                  t_collection_log 조회
+         ╲                  ╲                  ╱                      │
+          └──────────── MySQL (crawlerdb) ──────────────────────────┘
 ```
 
 crawler-admin 은 **읽기 전용이 아니다.** 키워드 등록·수정·비활성화, URL 재투입, 도메인 규칙 편집 등 운영에 필요한 쓰기 작업을 수행한다.
@@ -107,7 +107,7 @@ Bootstrap 5 + Bootstrap Icons 는 CDN으로 로드한다.
 | 단건 재투입 | `POST /urls/{id}/reinject` | `status=discovered`, `attempt_count=0`, error 컬럼 초기화 |
 | 일괄 재투입 | `POST /urls/reinject-bulk` | 특정 실패 status 전체 재투입 |
 
-**재투입 동작**: `status`, `attempt_count`, `last_error_code`, `last_error_msg`, `next_retry_at` 초기화. keyword-crawler extraction worker 가 다음 루프에서 자동 처리.
+**재투입 동작**: `status`, `attempt_count`, `last_error_code`, `last_error_msg`, `next_retry_at` 초기화. extraction-worker 가 다음 루프에서 자동 처리.
 
 > 상단 카드 중 `failed_transient` / `failed_permanent` / `dead` 만 클릭 시 해당 status 필터가 적용된다. `discovered` / `extracting` / `stored` 카드는 현황 표시 전용이며 클릭해도 목록이 변하지 않는다.
 
@@ -121,7 +121,7 @@ Bootstrap 5 + Bootstrap Icons 는 CDN으로 로드한다.
 | 규칙 편집 | `POST /domains/{host}/edit-rules` | `rules_json` JSON 편집 + `rules_version` 자동 증가 |
 
 규칙 편집 시 저장 전 JSON 유효성 검증. 실패 시 플래시 메시지.
-저장된 규칙은 keyword-crawler 가 TTL 캐시(기본 60초)로 자동 반영.
+저장된 규칙은 extraction-worker 가 TTL 캐시(기본 60초)로 자동 반영.
 
 ### 3.5 수집 이력 (`/logs`)
 
@@ -239,4 +239,4 @@ Starlette 미들웨어는 추가 역순으로 실행된다.
 - 다중 관리자 계정 — 내부 단독 사용 용도이므로 단일 계정으로 충분
 - 실시간 로그 스트리밍 — 별도 로그 뷰어 또는 `docker logs -f` 사용
 - 수집 워커 직접 기동/중단 — Docker/서버 레벨에서 처리
-- 추출 규칙 미리보기(URL 테스트) — keyword-crawler 의 `scripts/run_extraction.py` 사용
+- 추출 규칙 미리보기(URL 테스트) — extraction-worker 의 `scripts/run_extraction.py` 사용
