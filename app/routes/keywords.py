@@ -9,7 +9,7 @@ from app.repository import keyword_repo
 
 router = APIRouter(prefix="/keywords")
 
-SOURCE_TYPES = ["NAVER_NEWS", "DAUM_NEWS", "GOOGLE_NEWS", "BAIDU_NEWS", "NAVER_STOCK"]
+SOURCE_TYPES = ["NAVER_NEWS", "DAUM_NEWS", "GOOGLE_NEWS", "BAIDU_NEWS", "NAVER_STOCK", "DUCKDUCKGO_NEWS"]
 
 
 def _flash(request: Request, msg: str, level: str = "success") -> None:

@@ -9,7 +9,7 @@ from app.repository import crawl_url_repo
 
 router = APIRouter(prefix="/urls")
 
-SOURCE_TYPES = ["NAVER_NEWS", "DAUM_NEWS", "GOOGLE_NEWS", "BAIDU_NEWS", "NAVER_STOCK", "SOLR_RESCRAPE"]
+SOURCE_TYPES = ["NAVER_NEWS", "DAUM_NEWS", "GOOGLE_NEWS", "BAIDU_NEWS", "NAVER_STOCK", "DUCKDUCKGO_NEWS", "SOLR_RESCRAPE"]
 FAIL_STATUSES = ["failed_transient", "failed_permanent", "dead"]
 
 

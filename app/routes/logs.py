@@ -8,7 +8,7 @@ from app.repository import collection_log_repo
 
 router = APIRouter(prefix="/logs")
 
-SOURCE_TYPES = ["NAVER_NEWS", "DAUM_NEWS", "GOOGLE_NEWS", "BAIDU_NEWS", "NAVER_STOCK"]
+SOURCE_TYPES = ["NAVER_NEWS", "DAUM_NEWS", "GOOGLE_NEWS", "BAIDU_NEWS", "NAVER_STOCK", "DUCKDUCKGO_NEWS"]
 
 
 @router.get("")
