@@ -66,17 +66,28 @@ LOG_BACKUP_COUNT = _env_int("LOG_BACKUP_COUNT", 10)
 _REQUIRED = ["RDS_HOST", "RDS_USER", "RDS_PASSWORD", "RDS_CRAWLER_DB", "ADMIN_PASSWORD"]
 _REQUIRED_TUNNEL = ["TUNNEL_SSH_HOST", "TUNNEL_SSH_KEY_PATH"]
 
+# SESSION_SECRET은 이미지에 포함되는 공통 .env가 항상 값을 채워두므로
+# 단순 존재 여부로는 미설정을 못 잡는다 — 알려진 placeholder 값인지로 판별한다.
+_SESSION_SECRET_PLACEHOLDERS = {"change-me", "change-me-in-production"}
+
 
 def validate() -> None:
     missing = [k for k in _REQUIRED if not os.getenv(k)]
     if TUNNEL_ENABLED:
         missing += [k for k in _REQUIRED_TUNNEL if not os.getenv(k)]
 
-    if not missing:
+    errors = [f"{k} 환경변수가 설정되지 않았습니다" for k in missing]
+    if SESSION_SECRET in _SESSION_SECRET_PLACEHOLDERS:
+        errors.append(
+            "SESSION_SECRET 이 기본 placeholder 값입니다 — "
+            "환경별 .env.{APP_ENV} 파일(이미지에 포함되지 않음)에 실제 값을 설정하세요"
+        )
+
+    if not errors:
         return
 
-    print("ERROR: 다음 필수 환경변수가 설정되지 않았습니다:", file=sys.stderr)
-    for key in missing:
-        print(f"  - {key}", file=sys.stderr)
+    print("ERROR: 다음 문제를 해결하세요:", file=sys.stderr)
+    for e in errors:
+        print(f"  - {e}", file=sys.stderr)
     print("  .env 파일 또는 환경변수를 확인하세요.", file=sys.stderr)
     sys.exit(1)
