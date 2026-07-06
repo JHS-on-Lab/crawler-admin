@@ -3,13 +3,30 @@
 import json
 
 from fastapi import APIRouter, Form, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response
 
 from app.tmpl import templates
 from app.repository.db import get_engine
 from app.repository import domain_repo
+from app.excel import ExcelColumn, xlsx_response
 
 router = APIRouter(prefix="/domains")
+
+_EXPORT_COLUMNS = [
+    ExcelColumn("host", "도메인"),
+    ExcelColumn("render_mode", "렌더 모드"),
+    ExcelColumn("rules_enabled", "규칙 활성화", formatter=lambda v: "활성" if v else "비활성"),
+    ExcelColumn("crawl_delay_ms", "지연(ms)"),
+    ExcelColumn("success_rate", "성공률(%)",
+                formatter=lambda v: round(v * 100, 1) if v is not None else None),
+    ExcelColumn("recent_fail_count", "실패 수"),
+    ExcelColumn("cooldown_until", "쿨다운 종료"),
+    ExcelColumn("updated_by", "수정자"),
+    ExcelColumn("updated_at", "수정일시"),
+    ExcelColumn("rules_json", "추출 규칙(JSON)",
+                formatter=lambda v: json.dumps(v, ensure_ascii=False) if v else None,
+                width=50),
+]
 
 
 def _flash(request: Request, msg: str, level: str = "success") -> None:
@@ -46,6 +63,27 @@ async def list_domains(
         "sort_order": order,
         "flash": flash,
     })
+
+
+@router.get("/export.xlsx")
+async def export_domains(
+    search: str = "",
+    rules_filter: str = "",
+    sort: str = "",
+    order: str = "asc",
+) -> Response:
+    """현재 화면의 검색·필터·정렬 조건을 그대로 적용해 조회 결과를 엑셀로 내려받는다."""
+    if order not in ("asc", "desc"):
+        order = "asc"
+    with get_engine().connect() as conn:
+        domains = domain_repo.list_domains(
+            conn,
+            search=search or None,
+            rules_filter=rules_filter or None,
+            sort_by=sort or None,
+            sort_order=order,
+        )
+    return xlsx_response(domains, _EXPORT_COLUMNS, filename="도메인_규칙", sheet_name="도메인 규칙")
 
 
 @router.post("/{host:path}/toggle-rules")

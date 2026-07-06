@@ -25,6 +25,10 @@
     <a href="/domains?sort={{ sort_by }}&order={{ sort_order }}"
        class="btn btn-sm btn-outline-secondary" style="font-size:0.78rem;">초기화</a>
     {% endif %}
+    <a href="/domains/export.xlsx?search={{ search }}&rules_filter={{ rules_filter }}&sort={{ sort_by }}&order={{ sort_order }}"
+       class="btn btn-sm btn-outline-success" style="font-size:0.78rem;" title="현재 조회 조건으로 엑셀 다운로드">
+      <i class="bi bi-file-earmark-excel"></i> 엑셀 다운로드
+    </a>
     <span class="ms-auto text-muted" style="font-size:0.78rem;">총 {{ domains|length }}개 도메인</span>
   </div>
 </form>

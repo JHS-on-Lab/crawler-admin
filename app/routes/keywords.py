@@ -1,15 +1,28 @@
 """키워드 CRUD."""
 
 from fastapi import APIRouter, Form, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response
 
 from app.tmpl import templates
 from app.repository.db import get_engine
 from app.repository import keyword_repo
+from app.excel import ExcelColumn, xlsx_response
 
 router = APIRouter(prefix="/keywords")
 
 SOURCE_TYPES = ["NAVER_NEWS", "DAUM_NEWS", "GOOGLE_NEWS", "BAIDU_NEWS", "NAVER_STOCK", "DUCKDUCKGO_NEWS"]
+
+_EXPORT_COLUMNS = [
+    ExcelColumn("id", "ID"),
+    ExcelColumn("keyword", "키워드"),
+    ExcelColumn("display_name", "표시 이름"),
+    ExcelColumn("source_type", "소스"),
+    ExcelColumn("priority", "우선순위"),
+    ExcelColumn("interval_seconds", "주기(초)"),
+    ExcelColumn("next_discover_at", "다음 수집"),
+    ExcelColumn("enabled", "상태", formatter=lambda v: "활성" if v else "비활성"),
+    ExcelColumn("disabled_reason", "비활성 사유"),
+]
 
 
 def _flash(request: Request, msg: str, level: str = "success") -> None:
@@ -52,6 +65,29 @@ async def list_keywords(
         "sort_order": order,
         "flash": flash,
     })
+
+
+@router.get("/export.xlsx")
+async def export_keywords(
+    source_type: str = "",
+    enabled: str = "",
+    search: str = "",
+    sort: str = "",
+    order: str = "asc",
+) -> Response:
+    """현재 화면의 검색·필터·정렬 조건을 그대로 적용해 조회 결과를 엑셀로 내려받는다."""
+    if order not in ("asc", "desc"):
+        order = "asc"
+    with get_engine().connect() as conn:
+        keywords = keyword_repo.list_keywords(
+            conn,
+            source_type=source_type or None,
+            enabled=enabled or None,
+            search=search or None,
+            sort_by=sort or None,
+            sort_order=order,
+        )
+    return xlsx_response(keywords, _EXPORT_COLUMNS, filename="키워드_관리", sheet_name="키워드")
 
 
 @router.get("/new")
