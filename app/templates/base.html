@@ -219,15 +219,44 @@
 <script>
   // 공용 클립보드 복사 — 버튼의 data-copy-text 를 복사하고 아이콘으로 잠깐 피드백을 준다.
   // 사용: <button onclick="copyToClipboard(this)" data-copy-text="...">
+  //
+  // navigator.clipboard 는 HTTPS(또는 localhost) 같은 secure context 에서만 존재한다.
+  // 사내망에서 평문 HTTP 로 접속하는 경우 navigator.clipboard 자체가 undefined 라
+  // 클릭해도 조용히 아무 반응이 없었음(에러 핸들링도 없었음) — execCommand 폴백 추가.
   function copyToClipboard(btn) {
     const text = btn.dataset.copyText || "";
-    navigator.clipboard.writeText(text).then(() => {
+
+    const onSuccess = () => {
       const icon = btn.querySelector("i");
       if (!icon) return;
       const original = icon.className;
       icon.className = "bi bi-check-lg text-success";
       setTimeout(() => { icon.className = original; }, 1200);
-    });
+    };
+
+    const fallbackCopy = () => {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      try {
+        document.execCommand("copy");
+        onSuccess();
+      } catch (e) {
+        console.error("클립보드 복사 실패:", e);
+        alert("복사에 실패했습니다. 브라우저 권한을 확인해주세요.");
+      }
+      document.body.removeChild(ta);
+    };
+
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(onSuccess).catch(fallbackCopy);
+    } else {
+      fallbackCopy();
+    }
   }
 </script>
 {% block scripts %}{% endblock %}
