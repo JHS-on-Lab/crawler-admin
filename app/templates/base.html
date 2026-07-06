@@ -216,6 +216,20 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  // 공용 클립보드 복사 — 버튼의 data-copy-text 를 복사하고 아이콘으로 잠깐 피드백을 준다.
+  // 사용: <button onclick="copyToClipboard(this)" data-copy-text="...">
+  function copyToClipboard(btn) {
+    const text = btn.dataset.copyText || "";
+    navigator.clipboard.writeText(text).then(() => {
+      const icon = btn.querySelector("i");
+      if (!icon) return;
+      const original = icon.className;
+      icon.className = "bi bi-check-lg text-success";
+      setTimeout(() => { icon.className = original; }, 1200);
+    });
+  }
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>
