@@ -20,17 +20,32 @@
       <option value="inactive" {% if rules_filter == 'inactive' %}selected{% endif %}>규칙 비활성</option>
       <option value="none"     {% if rules_filter == 'none'     %}selected{% endif %}>규칙 없음</option>
     </select>
+    <select name="excluded_filter" class="form-select form-select-sm" style="width:auto; font-size:0.8rem;">
+      <option value=""            {% if not excluded_filter                %}selected{% endif %}>전체 차단상태</option>
+      <option value="blocked"     {% if excluded_filter == 'blocked'     %}selected{% endif %}>차단됨</option>
+      <option value="not_blocked" {% if excluded_filter == 'not_blocked' %}selected{% endif %}>정상</option>
+    </select>
     <button type="submit" class="btn btn-sm btn-primary" style="font-size:0.78rem;">검색</button>
-    {% if search or rules_filter %}
+    {% if search or rules_filter or excluded_filter %}
     <a href="/domains?sort={{ sort_by }}&order={{ sort_order }}"
        class="btn btn-sm btn-outline-secondary" style="font-size:0.78rem;">초기화</a>
     {% endif %}
-    <a href="/domains/export.xlsx?search={{ search }}&rules_filter={{ rules_filter }}&sort={{ sort_by }}&order={{ sort_order }}"
+    <a href="/domains/export.xlsx?search={{ search }}&rules_filter={{ rules_filter }}&excluded_filter={{ excluded_filter }}&sort={{ sort_by }}&order={{ sort_order }}"
        class="btn btn-sm btn-outline-success" style="font-size:0.78rem;" title="현재 조회 조건으로 엑셀 다운로드">
       <i class="bi bi-file-earmark-excel"></i> 엑셀 다운로드
     </a>
     <span class="ms-auto text-muted" style="font-size:0.78rem;">총 {{ domains|length }}개 도메인</span>
   </div>
+</form>
+
+{# ── 신규 도메인 선제 차단 ── #}
+<form method="post" action="/domains/block" class="d-flex align-items-center gap-2 mb-3">
+  <input type="text" name="host" class="form-control form-control-sm" style="width:240px;"
+         placeholder="차단할 도메인 (예: www.example.com)" required>
+  <button type="submit" class="btn btn-sm btn-outline-danger" style="font-size:0.78rem;">
+    <i class="bi bi-slash-circle"></i> 도메인 차단 추가
+  </button>
+  <span class="text-muted" style="font-size:0.75rem;">아직 수집 이력이 없는 도메인도 미리 차단할 수 있습니다.</span>
 </form>
 
 {# ── Domain Table ── #}
@@ -39,7 +54,7 @@
     <table class="table table-hover mb-0">
       {% macro sort_link(col, label) %}
         {% set next_order = "desc" if (sort_by == col and sort_order == "asc") else "asc" %}
-        {% set href = "/domains?search=" ~ search ~ "&rules_filter=" ~ rules_filter ~ "&sort=" ~ col ~ "&order=" ~ next_order %}
+        {% set href = "/domains?search=" ~ search ~ "&rules_filter=" ~ rules_filter ~ "&excluded_filter=" ~ excluded_filter ~ "&sort=" ~ col ~ "&order=" ~ next_order %}
         <a href="{{ href }}" class="text-decoration-none text-reset d-inline-flex align-items-center gap-1">
           {{ label }}
           {% if sort_by == col %}
@@ -62,6 +77,21 @@
                data-bs-content="<div style='font-size:0.78rem; line-height:1.6;'>
                  <b>수집 대상 도메인 호스트</b><br>
                  <span class='text-muted'>하단 소자는 마지막으로<br>설정을 변경한 워커/사용자 ID</span>
+               </div>"></i>
+          </th>
+          <th class="text-center">
+            {{ sort_link("excluded", "차단") }}
+            <i class="bi bi-info-circle text-muted ms-1"
+               style="font-size:0.75rem; cursor:pointer;"
+               data-bs-toggle="popover"
+               data-bs-trigger="hover focus"
+               data-bs-html="true"
+               data-bs-placement="top"
+               data-bs-content="<div style='font-size:0.78rem; line-height:1.6;'>
+                 <b>도메인 완전 제외</b><br>
+                 차단 시 discovery/rescrape 단계에서 URL을<br>
+                 수집조차 하지 않고, 이미 큐에 있어도<br>
+                 extraction 단계에서 처리하지 않음
                </div>"></i>
           </th>
           <th class="text-center">
@@ -161,11 +191,18 @@
       </thead>
       <tbody>
         {% for d in domains %}
-        <tr class="{% if d.cooldown_until %}table-warning{% endif %}">
+        <tr class="{% if d.excluded %}table-danger{% elif d.cooldown_until %}table-warning{% endif %}">
           <td>
             <div class="fw-medium" style="font-size:0.825rem;">{{ d.host }}</div>
             {% if d.updated_by %}
             <div class="text-muted" style="font-size:0.7rem;">by {{ d.updated_by }}</div>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            {% if d.excluded %}
+            <span class="badge badge-dead"><i class="bi bi-slash-circle"></i> 차단</span>
+            {% else %}
+            <span class="text-muted" style="font-size:0.75rem;">—</span>
             {% endif %}
           </td>
           <td class="text-center">
@@ -242,6 +279,14 @@
                 </button>
               </form>
               {% endif %}
+
+              {# 도메인 차단 토글 #}
+              <form method="post" action="/domains/{{ d.host }}/toggle-excluded" class="d-inline">
+                <button class="btn btn-sm {% if d.excluded %}btn-outline-success{% else %}btn-outline-danger{% endif %}"
+                        style="font-size:0.72rem;" title="{{ '차단 해제' if d.excluded else '도메인 차단' }}">
+                  <i class="bi bi-slash-circle"></i>
+                </button>
+              </form>
             </div>
           </td>
         </tr>
@@ -282,7 +327,7 @@
 
         {% else %}
         <tr>
-          <td colspan="8" class="text-center text-muted py-5">
+          <td colspan="9" class="text-center text-muted py-5">
             <i class="bi bi-globe2 d-block mb-2" style="font-size:1.5rem;"></i>
             등록된 도메인 규칙이 없습니다.
           </td>

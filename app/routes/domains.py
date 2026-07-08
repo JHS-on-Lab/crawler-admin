@@ -14,6 +14,7 @@ router = APIRouter(prefix="/domains")
 
 _EXPORT_COLUMNS = [
     ExcelColumn("host", "도메인"),
+    ExcelColumn("excluded", "차단 여부", formatter=lambda v: "차단" if v else "정상"),
     ExcelColumn("render_mode", "렌더 모드"),
     ExcelColumn("rules_enabled", "규칙 활성화", formatter=lambda v: "활성" if v else "비활성"),
     ExcelColumn("crawl_delay_ms", "지연(ms)"),
@@ -38,6 +39,7 @@ async def list_domains(
     request: Request,
     search: str = "",
     rules_filter: str = "",
+    excluded_filter: str = "",
     sort: str = "",
     order: str = "asc",
 ):
@@ -48,6 +50,7 @@ async def list_domains(
             conn,
             search=search or None,
             rules_filter=rules_filter or None,
+            excluded_filter=excluded_filter or None,
             sort_by=sort or None,
             sort_order=order,
         )
@@ -59,6 +62,7 @@ async def list_domains(
         "domains": domains,
         "search": search,
         "rules_filter": rules_filter,
+        "excluded_filter": excluded_filter,
         "sort_by": sort,
         "sort_order": order,
         "flash": flash,
@@ -69,6 +73,7 @@ async def list_domains(
 async def export_domains(
     search: str = "",
     rules_filter: str = "",
+    excluded_filter: str = "",
     sort: str = "",
     order: str = "asc",
 ) -> Response:
@@ -80,6 +85,7 @@ async def export_domains(
             conn,
             search=search or None,
             rules_filter=rules_filter or None,
+            excluded_filter=excluded_filter or None,
             sort_by=sort or None,
             sort_order=order,
         )
@@ -95,6 +101,27 @@ async def toggle_rules(request: Request, host: str):
             domain_repo.toggle_rules_enabled(conn, host, new_state)
             action = "활성화" if new_state else "비활성화"
             _flash(request, f"{host} 규칙을 {action}했습니다.")
+    return RedirectResponse("/domains", status_code=303)
+
+
+@router.post("/{host:path}/toggle-excluded")
+async def toggle_excluded(request: Request, host: str):
+    with get_engine().connect() as conn:
+        domain = domain_repo.get_domain(conn, host)
+        if domain:
+            new_state = not domain["excluded"]
+            domain_repo.toggle_excluded(conn, host, new_state)
+            action = "차단" if new_state else "차단 해제"
+            _flash(request, f"{host}을(를) {action}했습니다.")
+    return RedirectResponse("/domains", status_code=303)
+
+
+@router.post("/block")
+async def block_domain(request: Request, host: str = Form(...)):
+    host = host.strip().lower()
+    with get_engine().connect() as conn:
+        domain_repo.block_domain(conn, host)
+    _flash(request, f"{host}을(를) 차단했습니다.")
     return RedirectResponse("/domains", status_code=303)
 
 

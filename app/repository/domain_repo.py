@@ -8,7 +8,7 @@ from sqlalchemy import Connection, text
 
 
 # NOT NULL 컬럼 — 직접 정렬 안전
-_SORT_COLS = {"host", "recent_fail_count"}
+_SORT_COLS = {"host", "recent_fail_count", "excluded"}
 
 # rules_enabled: rules_json NULL 행도 DEFAULT 1이라 CASE로 3단계 구분
 _RULES_SORT_EXPR = (
@@ -33,6 +33,7 @@ def list_domains(
     conn: Connection,
     search: str | None = None,
     rules_filter: str | None = None,
+    excluded_filter: str | None = None,
     sort_by: str | None = None,
     sort_order: str = "asc",
 ) -> list:
@@ -47,6 +48,10 @@ def list_domains(
         q += " AND rules_json IS NOT NULL AND rules_enabled = 0"
     elif rules_filter == "none":
         q += " AND rules_json IS NULL"
+    if excluded_filter == "blocked":
+        q += " AND excluded = 1"
+    elif excluded_filter == "not_blocked":
+        q += " AND excluded = 0"
     direction = "DESC" if sort_order == "desc" else "ASC"
     if sort_by == "rules_enabled":
         q += f" ORDER BY {_RULES_SORT_EXPR} {direction}"
@@ -87,6 +92,23 @@ def toggle_rules_enabled(conn: Connection, host: str, enabled: bool) -> None:
     conn.execute(text("""
         UPDATE t_domain SET rules_enabled = :enabled, updated_by = 'admin' WHERE host = :host
     """), {"enabled": enabled, "host": host})
+    conn.commit()
+
+
+def toggle_excluded(conn: Connection, host: str, excluded: bool) -> None:
+    conn.execute(text("""
+        UPDATE t_domain SET excluded = :excluded, updated_by = 'admin' WHERE host = :host
+    """), {"excluded": excluded, "host": host})
+    conn.commit()
+
+
+def block_domain(conn: Connection, host: str) -> None:
+    """아직 t_domain에 행이 없는 도메인도 선제 차단할 수 있도록 upsert한다."""
+    conn.execute(text("""
+        INSERT INTO t_domain (host, excluded, updated_by)
+        VALUES (:host, 1, 'admin')
+        ON DUPLICATE KEY UPDATE excluded = 1, updated_by = 'admin'
+    """), {"host": host})
     conn.commit()
 
 
