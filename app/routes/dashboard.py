@@ -1,6 +1,6 @@
 """대시보드 — URL 큐 현황 + 일별 수집 통계."""
 
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Request
 
@@ -9,6 +9,30 @@ from app.repository.db import get_engine
 from app.repository import crawl_url_repo, collection_log_repo, keyword_repo
 
 router = APIRouter()
+
+FAILURE_TREND_DAYS = 7
+
+
+def _build_failure_trend(rows: list, days: int) -> list:
+    """DB에 없는 날짜(실행 이력 없음)도 채워서 정확히 days개의 연속된 날짜를 반환한다."""
+    by_date = {r["run_date"].isoformat(): r for r in rows}
+    today = date.today()
+    trend = []
+    for i in range(days - 1, -1, -1):
+        d = today - timedelta(days=i)
+        d_iso = d.isoformat()
+        row = by_date.get(d_iso)
+        attempted = int(row["total_attempted"] or 0) if row else 0
+        failed = int(row["total_failed"] or 0) if row else 0
+        rate = round(failed / attempted * 100, 1) if attempted > 0 else None
+        trend.append({
+            "date": d_iso,
+            "label": d.strftime("%m/%d"),
+            "attempted": attempted,
+            "failed": failed,
+            "rate": rate,
+        })
+    return trend
 
 
 @router.get("/")
@@ -20,6 +44,9 @@ async def dashboard(request: Request, run_date: str | None = None):
         status_summary = crawl_url_repo.get_status_summary(conn)
         keyword_counts = keyword_repo.get_source_type_counts(conn)
         date_stats = collection_log_repo.get_date_stats(conn, run_date)
+        failure_trend_rows = collection_log_repo.get_extraction_failure_trend(conn, FAILURE_TREND_DAYS)
+
+    failure_trend = _build_failure_trend(failure_trend_rows, FAILURE_TREND_DAYS)
 
     status_map = {row["status"]: row["cnt"] for row in status_summary}
 
@@ -51,4 +78,5 @@ async def dashboard(request: Request, run_date: str | None = None):
         "discovery_rows":   discovery_rows,
         "extraction_total": extraction_total,
         "extraction_rows":  extraction_rows,
+        "failure_trend":    failure_trend,
     })

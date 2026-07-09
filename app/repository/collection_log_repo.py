@@ -65,6 +65,20 @@ def get_date_stats(conn: Connection, run_date: str) -> list:
     """), {"run_date": run_date}).mappings().all()
 
 
+def get_extraction_failure_trend(conn: Connection, days: int = 7) -> list:
+    """최근 N일간 일자별 extraction 실패율 집계 (소스 구분 없이 전체 합산)."""
+    return conn.execute(text("""
+        SELECT run_date,
+               SUM(urls_attempted) AS total_attempted,
+               SUM(urls_failed)    AS total_failed
+        FROM t_collection_log
+        WHERE run_type = 'extraction'
+          AND run_date >= DATE_SUB(CURDATE(), INTERVAL :days DAY)
+        GROUP BY run_date
+        ORDER BY run_date ASC
+    """), {"days": days - 1}).mappings().all()
+
+
 def get_daily_summary(conn: Connection, days: int = 7) -> list:
     return conn.execute(text("""
         SELECT run_date, run_type, source_type,
