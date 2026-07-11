@@ -32,6 +32,8 @@ python -m app --help
 
 브라우저에서 `http://localhost:8000` 접속 후 `.env.local` 의 `ADMIN_USER` / `ADMIN_PASSWORD` 로 로그인.
 
+같은 클라이언트 IP에서 15분 내 로그인 5회 실패하면 일시적으로 잠긴다(429). 프로세스를 재시작하면 풀린다.
+
 ---
 
 ## 2. Docker 빌드 및 실행
@@ -113,6 +115,9 @@ LOG_BACKUP_COUNT=10    # size 모드: 보관 파일 수
 
 **일괄**: URL 목록 상단 "일괄 재투입" → status 선택 → 확인.
 `status = discovered`, `attempt_count = 0`, error 컬럼 초기화.
+
+두 경우 모두 대상이 실패 상태(`failed_transient`/`failed_permanent`/`dead`)일 때만
+서버가 실제로 갱신한다 — 이미 완료/처리 중인 URL은 재투입되지 않고 실패 메시지가 뜬다.
 
 ### 도메인 쿨다운 해제
 

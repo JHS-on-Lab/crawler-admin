@@ -67,11 +67,25 @@ Bootstrap 5 + Bootstrap Icons 는 CDN으로 로드한다.
 ### 2.2 인증 흐름
 
 1. 미인증 요청 → `RequireLoginMiddleware` 가 `/login` 으로 리다이렉트
-2. `POST /login` → `ADMIN_USER` / `ADMIN_PASSWORD` 검증
-3. 성공 시 세션 쿠키(`itsdangerous` 서명) 발급, 24시간 유효
+2. `POST /login` → `ADMIN_USER` / `ADMIN_PASSWORD` 를 `secrets.compare_digest` 로 상수시간 비교
+3. 성공 시 세션 쿠키(`itsdangerous` 서명) 발급, 24시간 유효, 실패 카운터 초기화
 4. `/logout` → 세션 삭제
 
 공개 경로: `/login`, `/favicon.ico` 만 인증 없이 접근 가능.
+
+**로그인 시도 제한** (`app/routes/auth.py`): 클라이언트 IP 별로 실패 횟수를 인메모리로
+추적한다. 15분 내 5회 실패하면 그 이후 요청은 자격증명 확인 없이 즉시 429로 거절된다
+(brute force 방어). 워커 프로세스 재시작 시 카운터는 초기화된다.
+
+### 2.3 CSRF 보호
+
+`app/csrf.py` — synchronizer token 패턴. 세션마다 랜덤 토큰을 한 번 발급해 `Jinja2Templates`
+의 `context_processors` 로 모든 템플릿 렌더링에 `csrf_token` 을 자동 주입하고, 각 폼은
+`<input type="hidden" name="csrf_token">` 로 이를 실어 보낸다. state-changing POST 라우트
+(로그인 포함 총 12개 폼 대응)는 전부 `Depends(verify_csrf)` 로 세션 토큰과 제출된 토큰이
+일치하는지 검증하며, 불일치/누락 시 403. `RequireLoginMiddleware` 가 세션 쿠키만으로
+인증을 판단하는 구조라 CSRF 방어가 없으면 관리자가 로그인해둔 상태에서 악성 페이지가
+대신 상태 변경 요청을 보낼 수 있었다.
 
 ---
 
@@ -109,6 +123,8 @@ Bootstrap 5 + Bootstrap Icons 는 CDN으로 로드한다.
 
 **재투입 동작**: `status`, `attempt_count`, `last_error_code`, `last_error_msg`, `next_retry_at` 초기화. extraction-worker 가 다음 루프에서 자동 처리.
 
+**서버측 검증**: 두 엔드포인트 모두 대상 URL이 실패 상태(`FAIL_STATUSES` = `failed_transient`/`failed_permanent`/`dead`)일 때만 실제로 갱신한다. 단건 재투입은 `WHERE id=:id AND status IN :fail_statuses` 조건으로, 일괄 재투입은 `status` 파라미터 자체를 사전 검증해서, 조작된 요청으로 이미 완료(`stored`)되거나 처리 중(`extracting`)인 URL이 초기화되는 것을 막는다. 대상이 아니면 실패 flash 메시지를 표시한다.
+
 > 상단 카드 중 `failed_transient` / `failed_permanent` / `dead` 만 클릭 시 해당 status 필터가 적용된다. `discovered` / `extracting` / `stored` 카드는 현황 표시 전용이며 클릭해도 목록이 변하지 않는다.
 
 ### 3.4 도메인 규칙 관리 (`/domains`)
@@ -122,6 +138,12 @@ Bootstrap 5 + Bootstrap Icons 는 CDN으로 로드한다.
 
 규칙 편집 시 저장 전 JSON 유효성 검증. 실패 시 플래시 메시지.
 저장된 규칙은 extraction-worker 가 TTL 캐시(기본 60초)로 자동 반영.
+
+`host` 는 네 라우트(`toggle-rules`/`toggle-excluded`/`clear-cooldown`/`edit-rules`) 모두
+`.strip().lower()` 로 정규화한 뒤 조회한다(크롤러가 저장한 host와 대소문자가 달라
+매칭에 실패하는 것을 방지). 대상 host가 `t_domain` 에 없으면(정규화해도 못 찾으면)
+성공 메시지 대신 "찾을 수 없습니다" flash를 표시한다 — 이전에는 조용히 아무 일도
+안 일어나 실패 여부를 알 수 없었다.
 
 ### 3.5 수집 이력 (`/logs`)
 
@@ -145,7 +167,10 @@ app/
   config.py            # 환경변수 로딩 + validate()
   logging_setup.py     # 로그 파일 핸들러 설정
   middleware.py        # RequireLoginMiddleware
-  tmpl.py              # Jinja2Templates 인스턴스 (순환 import 방지용 분리)
+  tmpl.py              # Jinja2Templates 인스턴스 (순환 import 방지용 분리) + csrf_token 자동 주입
+  csrf.py              # CSRF synchronizer token 발급/검증 (verify_csrf)
+  flash.py             # 세션 플래시 메시지 헬퍼 (routes 3곳 중복 통합)
+  excel.py             # xlsx export 공통 모듈 — 수식 인젝션 방어 포함
 
   repository/
     db.py              # startup()/shutdown() + SSH 터널 + get_engine()
