@@ -1,8 +1,10 @@
 """URL 큐 조회 및 재투입."""
 
-from fastapi import APIRouter, Form, Request
+from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import RedirectResponse
 
+from app.csrf import verify_csrf
+from app.flash import flash as _flash
 from app.tmpl import templates
 from app.repository.db import get_engine
 from app.repository import crawl_url_repo
@@ -10,11 +12,9 @@ from app.repository import crawl_url_repo
 router = APIRouter(prefix="/urls")
 
 SOURCE_TYPES = ["NAVER_NEWS", "DAUM_NEWS", "GOOGLE_NEWS", "BAIDU_NEWS", "NAVER_STOCK", "DUCKDUCKGO_NEWS", "SOLR_RESCRAPE"]
-FAIL_STATUSES = ["failed_transient", "failed_permanent", "dead"]
-
-
-def _flash(request: Request, msg: str, level: str = "success") -> None:
-    request.session["flash"] = {"msg": msg, "level": level}
+# crawl_url_repo.FAIL_STATUSES 와 별도로 여기 목록을 두면 나중에 어긋날 수 있어
+# 하나의 정의를 그대로 가져다 쓴다.
+FAIL_STATUSES = list(crawl_url_repo.FAIL_STATUSES)
 
 
 @router.get("")
@@ -23,7 +23,7 @@ async def list_urls(
     status: str = "",
     source_type: str = "",
     host: str = "",
-    page: int = 1,
+    page: int = Query(1, ge=1),
 ):
     with get_engine().connect() as conn:
         summary = crawl_url_repo.get_status_summary(conn)
@@ -56,16 +56,23 @@ async def list_urls(
     })
 
 
-@router.post("/{url_id}/reinject")
+@router.post("/{url_id}/reinject", dependencies=[Depends(verify_csrf)])
 async def reinject(request: Request, url_id: int):
     with get_engine().connect() as conn:
-        crawl_url_repo.reinject(conn, url_id)
-    _flash(request, "URL을 재투입했습니다.")
+        ok = crawl_url_repo.reinject(conn, url_id)
+    if ok:
+        _flash(request, "URL을 재투입했습니다.")
+    else:
+        _flash(request, "재투입 대상이 아닙니다 (이미 처리 중이거나 완료된 URL일 수 있습니다).", level="danger")
     return RedirectResponse("/urls", status_code=303)
 
 
-@router.post("/reinject-bulk")
+@router.post("/reinject-bulk", dependencies=[Depends(verify_csrf)])
 async def reinject_bulk(request: Request, status: str = Form(...)):
+    if status not in FAIL_STATUSES:
+        _flash(request, f"잘못된 상태값입니다: {status}", level="danger")
+        return RedirectResponse("/urls", status_code=303)
+
     with get_engine().connect() as conn:
         count = crawl_url_repo.reinject_bulk(conn, status)
     _flash(request, f"{count}개 URL을 재투입했습니다.")

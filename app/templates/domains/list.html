@@ -40,6 +40,7 @@
 
 {# ── 신규 도메인 선제 차단 ── #}
 <form method="post" action="/domains/block" class="d-flex align-items-center gap-2 mb-3">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <input type="text" name="host" class="form-control form-control-sm" style="width:240px;"
          placeholder="차단할 도메인 (예: www.example.com)" required>
   <button type="submit" class="btn btn-sm btn-outline-danger" style="font-size:0.78rem;">
@@ -264,6 +265,7 @@
 
               {# 규칙 활성/비활성 토글 #}
               <form method="post" action="/domains/{{ d.host }}/toggle-rules" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <button class="btn btn-sm {% if d.rules_enabled %}btn-outline-warning{% else %}btn-outline-success{% endif %}"
                         style="font-size:0.72rem;" title="{{ '규칙 비활성화' if d.rules_enabled else '규칙 활성화' }}">
                   <i class="bi bi-toggle-{% if d.rules_enabled %}on{% else %}off{% endif %}"></i>
@@ -274,6 +276,7 @@
               {# 쿨다운 해제 #}
               {% if d.cooldown_until %}
               <form method="post" action="/domains/{{ d.host }}/clear-cooldown" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <button class="btn btn-sm btn-outline-success" style="font-size:0.72rem;" title="쿨다운 해제">
                   <i class="bi bi-unlock"></i>
                 </button>
@@ -282,6 +285,7 @@
 
               {# 도메인 차단 토글 #}
               <form method="post" action="/domains/{{ d.host }}/toggle-excluded" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <button class="btn btn-sm {% if d.excluded %}btn-outline-success{% else %}btn-outline-danger{% endif %}"
                         style="font-size:0.72rem;" title="{{ '차단 해제' if d.excluded else '도메인 차단' }}">
                   <i class="bi bi-slash-circle"></i>
@@ -303,6 +307,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
               </div>
               <form method="post" action="/domains/{{ d.host }}/edit-rules">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <div class="modal-body px-3 py-2">
                   <div class="mb-2 d-flex align-items-center gap-2">
                     <label class="form-label mb-0 fw-semibold" style="font-size:0.8rem;">규칙 활성화</label>

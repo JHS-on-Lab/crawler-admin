@@ -31,6 +31,7 @@
         <div class="stat-value" style="color:{{ color }}; font-size:1.35rem;">{{ "{:,}".format(cnt) }}</div>
         {% if is_fail and cnt > 0 %}
         <form method="post" action="/urls/reinject-bulk" class="d-inline" onclick="event.stopPropagation()">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <input type="hidden" name="status" value="{{ status }}">
           <button class="btn btn-sm" style="font-size:0.68rem; padding:0.2rem 0.5rem;
                   background:{{ bg }}; color:{{ color }}; border: 1px solid {{ color }};"
@@ -140,6 +141,7 @@
           </td>
           <td class="text-end">
             <form method="post" action="/urls/{{ row.id }}/reinject" class="d-inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
               <button class="btn btn-sm btn-outline-primary" style="font-size:0.72rem;" title="재투입">
                 <i class="bi bi-arrow-clockwise"></i>
               </button>

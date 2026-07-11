@@ -50,14 +50,29 @@ class ExcelColumn:
     width: int | None = None
 
 
+# 수식/CSV 인젝션 방어 — 이 문자로 시작하는 문자열 값은 그대로 셀에 넣으면 안 된다.
+# 특히 openpyxl 은 "=" 로 시작하는 문자열을 자동으로 실제 수식 셀(data_type='f')로
+# 저장하므로(직접 확인함), 관리자가 이 xlsx를 열면 그 즉시 수식이 실행된다 —
+# 이론적 위협이 아니라 실제로 재현되는 문제다.
+_FORMULA_TRIGGER_CHARS = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _neutralize_formula(value: str) -> str:
+    if value.startswith(_FORMULA_TRIGGER_CHARS):
+        return "'" + value
+    return value
+
+
 def _cell_value(row: Mapping, col: ExcelColumn) -> Any:
     value = row.get(col.key)
     if col.formatter is not None:
-        return col.formatter(value)
-    if isinstance(value, datetime):
+        value = col.formatter(value)
+    elif isinstance(value, datetime):
         return value.replace(tzinfo=None) if value.tzinfo else value  # openpyxl 은 tz-aware datetime 미지원
-    if isinstance(value, (dict, list)):
-        return str(value)
+    elif isinstance(value, (dict, list)):
+        value = str(value)
+    if isinstance(value, str):
+        return _neutralize_formula(value)
     return value
 
 

@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
-from sqlalchemy import Connection, text
+from sqlalchemy import Connection, bindparam, text
 
 PAGE_SIZE = 50
+
+# 재투입(reinject) 가능한 상태. list_failed_urls 필터 검증, reinject_bulk 검증,
+# routes/urls.py 의 select 옵션 렌더링까지 이 하나의 정의를 공유한다 — 예전엔
+# urls.py 에 별도로 같은 목록이 복붙돼 있어서 서로 어긋날 위험이 있었다.
+FAIL_STATUSES = ("failed_transient", "failed_permanent", "dead")
 
 
 def get_status_summary(conn: Connection) -> list:
@@ -34,12 +39,11 @@ def list_failed_urls(
     host: str | None = None,
     page: int = 1,
 ) -> tuple[list, int]:
-    _FAIL_STATUSES = ("failed_transient", "failed_permanent", "dead")
     where = [f"cu.status IN ('failed_transient','failed_permanent','dead')"]
     params: dict = {}
 
     if status:
-        if status not in _FAIL_STATUSES:
+        if status not in FAIL_STATUSES:
             return [], 0
         where = ["cu.status = :status"]
         params["status"] = status
@@ -73,17 +77,34 @@ def list_failed_urls(
     return rows, total or 0
 
 
-def reinject(conn: Connection, url_id: int) -> None:
-    conn.execute(text("""
+def reinject(conn: Connection, url_id: int) -> bool:
+    """실패 상태(FAIL_STATUSES)인 URL 하나를 discovered 로 되돌린다.
+
+    WHERE 절에 상태 조건을 명시해, 이미 stored/extracting 인 URL이 조작된
+    요청(잘못된 id 등)으로 실수로 초기화되는 것을 막는다.
+    반환: 실제로 갱신됐으면 True, 대상이 없거나(잘못된 id) 이미 실패 상태가
+    아니었으면 False.
+    """
+    result = conn.execute(text("""
         UPDATE t_crawl_url
         SET status = 'discovered', attempt_count = 0,
             last_error_code = NULL, last_error_msg = NULL, next_retry_at = NULL
-        WHERE id = :id
-    """), {"id": url_id})
+        WHERE id = :id AND status IN :fail_statuses
+    """).bindparams(bindparam("fail_statuses", expanding=True)),
+        {"id": url_id, "fail_statuses": list(FAIL_STATUSES)})
     conn.commit()
+    return result.rowcount > 0
 
 
 def reinject_bulk(conn: Connection, status: str) -> int:
+    """status 상태인 URL 을 전부 discovered 로 되돌린다.
+
+    status 가 FAIL_STATUSES 에 없으면 아무것도 하지 않고 0을 반환한다 —
+    조작된 요청으로 stored/extracting 같은 상태를 통째로 초기화하는 것을 막는다.
+    """
+    if status not in FAIL_STATUSES:
+        return 0
+
     result = conn.execute(text("""
         UPDATE t_crawl_url
         SET status = 'discovered', attempt_count = 0,

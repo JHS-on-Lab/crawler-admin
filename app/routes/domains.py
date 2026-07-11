@@ -2,9 +2,11 @@
 
 import json
 
-from fastapi import APIRouter, Form, Request
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse, Response
 
+from app.csrf import verify_csrf
+from app.flash import flash as _flash
 from app.tmpl import templates
 from app.repository.db import get_engine
 from app.repository import domain_repo
@@ -28,10 +30,6 @@ _EXPORT_COLUMNS = [
                 formatter=lambda v: json.dumps(v, ensure_ascii=False) if v else None,
                 width=50),
 ]
-
-
-def _flash(request: Request, msg: str, level: str = "success") -> None:
-    request.session["flash"] = {"msg": msg, "level": level}
 
 
 @router.get("")
@@ -92,8 +90,9 @@ async def export_domains(
     return xlsx_response(domains, _EXPORT_COLUMNS, filename="도메인_규칙", sheet_name="도메인 규칙")
 
 
-@router.post("/{host:path}/toggle-rules")
+@router.post("/{host:path}/toggle-rules", dependencies=[Depends(verify_csrf)])
 async def toggle_rules(request: Request, host: str):
+    host = host.strip().lower()
     with get_engine().connect() as conn:
         domain = domain_repo.get_domain(conn, host)
         if domain:
@@ -101,11 +100,14 @@ async def toggle_rules(request: Request, host: str):
             domain_repo.toggle_rules_enabled(conn, host, new_state)
             action = "활성화" if new_state else "비활성화"
             _flash(request, f"{host} 규칙을 {action}했습니다.")
+        else:
+            _flash(request, f"{host}을(를) 찾을 수 없습니다.", "danger")
     return RedirectResponse("/domains", status_code=303)
 
 
-@router.post("/{host:path}/toggle-excluded")
+@router.post("/{host:path}/toggle-excluded", dependencies=[Depends(verify_csrf)])
 async def toggle_excluded(request: Request, host: str):
+    host = host.strip().lower()
     with get_engine().connect() as conn:
         domain = domain_repo.get_domain(conn, host)
         if domain:
@@ -113,10 +115,12 @@ async def toggle_excluded(request: Request, host: str):
             domain_repo.toggle_excluded(conn, host, new_state)
             action = "차단" if new_state else "차단 해제"
             _flash(request, f"{host}을(를) {action}했습니다.")
+        else:
+            _flash(request, f"{host}을(를) 찾을 수 없습니다.", "danger")
     return RedirectResponse("/domains", status_code=303)
 
 
-@router.post("/block")
+@router.post("/block", dependencies=[Depends(verify_csrf)])
 async def block_domain(request: Request, host: str = Form(...)):
     host = host.strip().lower()
     with get_engine().connect() as conn:
@@ -125,25 +129,33 @@ async def block_domain(request: Request, host: str = Form(...)):
     return RedirectResponse("/domains", status_code=303)
 
 
-@router.post("/{host:path}/clear-cooldown")
+@router.post("/{host:path}/clear-cooldown", dependencies=[Depends(verify_csrf)])
 async def clear_cooldown(request: Request, host: str):
+    host = host.strip().lower()
     with get_engine().connect() as conn:
-        domain_repo.clear_cooldown(conn, host)
-    _flash(request, f"{host} 쿨다운을 해제했습니다.")
+        ok = domain_repo.clear_cooldown(conn, host)
+    if ok:
+        _flash(request, f"{host} 쿨다운을 해제했습니다.")
+    else:
+        _flash(request, f"{host}을(를) 찾을 수 없습니다.", "danger")
     return RedirectResponse("/domains", status_code=303)
 
 
-@router.post("/{host:path}/edit-rules")
+@router.post("/{host:path}/edit-rules", dependencies=[Depends(verify_csrf)])
 async def edit_rules(
     request: Request,
     host: str,
     rules_json: str = Form(...),
     rules_enabled: str = Form("false"),
 ):
+    host = host.strip().lower()
     try:
         with get_engine().connect() as conn:
-            domain_repo.update_rules(conn, host, rules_json, rules_enabled == "true")
-        _flash(request, f"{host} 규칙이 저장되었습니다.")
+            ok = domain_repo.update_rules(conn, host, rules_json, rules_enabled == "true")
+        if ok:
+            _flash(request, f"{host} 규칙이 저장되었습니다.")
+        else:
+            _flash(request, f"{host}을(를) 찾을 수 없습니다.", "danger")
     except json.JSONDecodeError:
         _flash(request, "JSON 형식이 올바르지 않습니다.", "danger")
     except Exception as e:

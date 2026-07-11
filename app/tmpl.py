@@ -5,5 +5,10 @@ from pathlib import Path
 
 from fastapi.templating import Jinja2Templates
 
-templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+from app.csrf import csrf_context_processor
+
+templates = Jinja2Templates(
+    directory=str(Path(__file__).parent / "templates"),
+    context_processors=[csrf_context_processor],
+)
 templates.env.filters["tojson"] = lambda v, indent=None: json.dumps(v, ensure_ascii=False, indent=indent)

@@ -1,6 +1,6 @@
 """수집 이력 조회."""
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 
 from app.tmpl import templates
 from app.repository.db import get_engine
@@ -17,7 +17,7 @@ async def list_logs(
     run_type: str = "",
     source_type: str = "",
     from_date: str = "",
-    page: int = 1,
+    page: int = Query(1, ge=1),
 ):
     with get_engine().connect() as conn:
         rows, total = collection_log_repo.list_logs(

@@ -1,8 +1,10 @@
 """키워드 CRUD."""
 
-from fastapi import APIRouter, Form, Request
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse, Response
 
+from app.csrf import verify_csrf
+from app.flash import flash as _flash
 from app.tmpl import templates
 from app.repository.db import get_engine
 from app.repository import keyword_repo
@@ -23,10 +25,6 @@ _EXPORT_COLUMNS = [
     ExcelColumn("enabled", "상태", formatter=lambda v: "활성" if v else "비활성"),
     ExcelColumn("disabled_reason", "비활성 사유"),
 ]
-
-
-def _flash(request: Request, msg: str, level: str = "success") -> None:
-    request.session["flash"] = {"msg": msg, "level": level}
 
 
 @router.get("")
@@ -100,7 +98,7 @@ async def new_keyword_form(request: Request):
     })
 
 
-@router.post("/new")
+@router.post("/new", dependencies=[Depends(verify_csrf)])
 async def create_keyword(
     request: Request,
     keyword: str = Form(...),
@@ -132,7 +130,7 @@ async def edit_keyword_form(request: Request, keyword_id: int):
     })
 
 
-@router.post("/{keyword_id}/edit")
+@router.post("/{keyword_id}/edit", dependencies=[Depends(verify_csrf)])
 async def update_keyword(
     request: Request,
     keyword_id: int,
@@ -150,7 +148,7 @@ async def update_keyword(
     return RedirectResponse("/keywords", status_code=303)
 
 
-@router.post("/{keyword_id}/toggle")
+@router.post("/{keyword_id}/toggle", dependencies=[Depends(verify_csrf)])
 async def toggle_keyword(
     request: Request,
     keyword_id: int,
@@ -165,7 +163,7 @@ async def toggle_keyword(
     return RedirectResponse("/keywords", status_code=303)
 
 
-@router.post("/{keyword_id}/trigger")
+@router.post("/{keyword_id}/trigger", dependencies=[Depends(verify_csrf)])
 async def trigger_keyword(request: Request, keyword_id: int):
     with get_engine().connect() as conn:
         kw = keyword_repo.get_keyword(conn, keyword_id)

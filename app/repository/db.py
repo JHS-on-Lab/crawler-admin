@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from sqlalchemy import create_engine, Engine
+from sqlalchemy.engine import URL
 
 from app import config
 
@@ -29,9 +30,17 @@ def startup() -> None:
         host = "127.0.0.1"
         port = config.TUNNEL_LOCAL_PORT
 
-    dsn = (
-        f"mysql+pymysql://{config.RDS_USER}:{config.RDS_PASSWORD}"
-        f"@{host}:{port}/{config.RDS_CRAWLER_DB}?charset=utf8mb4"
+    # URL.create() 는 username/password 를 자동으로 URL-encoding 한다.
+    # f-string 조립은 비밀번호에 '@' 같은 특수문자가 있으면 DSN 파싱 자체가
+    # 깨져서 기동에 실패한다(재현 확인됨).
+    dsn = URL.create(
+        "mysql+pymysql",
+        username=config.RDS_USER,
+        password=config.RDS_PASSWORD,
+        host=host,
+        port=port,
+        database=config.RDS_CRAWLER_DB,
+        query={"charset": "utf8mb4"},
     )
     _engine = create_engine(dsn, pool_pre_ping=True, pool_recycle=1800)
 

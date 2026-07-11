@@ -73,9 +73,10 @@ def get_domain(conn: Connection, host: str):
     ).mappings().first()
 
 
-def update_rules(conn: Connection, host: str, rules_json: str, rules_enabled: bool) -> None:
+def update_rules(conn: Connection, host: str, rules_json: str, rules_enabled: bool) -> bool:
+    """반환: 실제로 갱신된 행이 있으면 True (host가 t_domain에 없으면 False)."""
     parsed = json.loads(rules_json)  # 저장 전 JSON 유효성 검증
-    conn.execute(text("""
+    result = conn.execute(text("""
         UPDATE t_domain
         SET rules_json = :rules_json, rules_enabled = :rules_enabled,
             rules_version = rules_version + 1, updated_by = 'admin'
@@ -86,6 +87,7 @@ def update_rules(conn: Connection, host: str, rules_json: str, rules_enabled: bo
         "host": host,
     })
     conn.commit()
+    return result.rowcount > 0
 
 
 def toggle_rules_enabled(conn: Connection, host: str, enabled: bool) -> None:
@@ -112,10 +114,12 @@ def block_domain(conn: Connection, host: str) -> None:
     conn.commit()
 
 
-def clear_cooldown(conn: Connection, host: str) -> None:
-    conn.execute(text("""
+def clear_cooldown(conn: Connection, host: str) -> bool:
+    """반환: 실제로 갱신된 행이 있으면 True (host가 t_domain에 없으면 False)."""
+    result = conn.execute(text("""
         UPDATE t_domain
         SET cooldown_until = NULL, recent_fail_count = 0, updated_by = 'admin'
         WHERE host = :host
     """), {"host": host})
     conn.commit()
+    return result.rowcount > 0
