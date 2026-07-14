@@ -143,9 +143,17 @@ Bootstrap 5 + Bootstrap Icons 는 CDN으로 로드한다.
 | 규칙 활성/비활성 | `POST /domains/{host}/toggle-rules` | `rules_enabled` 토글 |
 | 쿨다운 해제 | `POST /domains/{host}/clear-cooldown` | `cooldown_until = NULL`, `recent_fail_count = 0` |
 | 규칙 편집 | `POST /domains/{host}/edit-rules` | `rules_json` JSON 편집 + `rules_version` 자동 증가 |
+| 규칙 요청 폼 생성 | `GET /domains/rule-request-form` | 실패 상위 도메인의 에러메시지·예시 URL을 정리해 복사 가능한 텍스트로 생성 |
 
 규칙 편집 시 저장 전 JSON 유효성 검증. 실패 시 플래시 메시지.
 저장된 규칙은 extraction-worker 가 TTL 캐시(기본 60초)로 자동 반영.
+
+**규칙 요청 폼**: `rules_filter=none`(규칙 없는 도메인) + `excluded_filter=not_blocked`
+기본값으로 실패 상위 N개(기본 15, 최대 100) 도메인을 뽑아, 도메인별 실패 URL을
+`last_error_msg` 로 그룹핑(건수 내림차순)해 그룹당 예시 URL 최대 3개와 함께 텍스트로
+조립한다. extraction-worker 의 도메인 규칙을 새로 작성할 때 매번 수동으로 실패
+현황을 정리하던 작업을 대체하기 위한 것 — extraction-worker 쪽 워크플로는
+`extraction-worker/docs/domain-rule-guide.md` 참고.
 
 `host` 는 네 라우트(`toggle-rules`/`toggle-excluded`/`clear-cooldown`/`edit-rules`) 모두
 `.strip().lower()` 로 정규화한 뒤 조회한다(크롤러가 저장한 host와 대소문자가 달라
