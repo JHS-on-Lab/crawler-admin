@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+
+{% block title %}{{ kw.keyword }} 수집 추이 — Crawler Admin{% endblock %}
+{% block page_title %}{{ kw.display_name or kw.keyword }}{% endblock %}
+{% block page_subtitle %}일자별 수집 URL 건수{% endblock %}
+
+{% block topbar_actions %}
+<a href="/keywords" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" style="font-size:0.8rem;">
+  <i class="bi bi-arrow-left"></i> 키워드 목록으로
+</a>
+{% endblock %}
+
+{% block content %}
+
+{# ── 키워드 정보 ── #}
+<div class="card mb-3">
+  <div class="card-body d-flex align-items-center flex-wrap gap-3" style="font-size:0.85rem;">
+    <div>
+      <span class="text-muted">키워드</span>
+      <span class="fw-medium ms-1">{{ kw.keyword }}</span>
+    </div>
+    {% if kw.display_name %}
+    <div>
+      <span class="text-muted">표시 이름</span>
+      <span class="fw-medium ms-1">{{ kw.display_name }}</span>
+    </div>
+    {% endif %}
+    <div>
+      <span class="text-muted">소스</span>
+      <span class="badge bg-light text-dark border ms-1" style="font-size:0.7rem;">{{ kw.source_type }}</span>
+    </div>
+    <div>
+      <span class="text-muted">상태</span>
+      {% if kw.enabled %}
+      <span class="badge badge-stored ms-1"><i class="bi bi-circle-fill" style="font-size:0.5rem;"></i> 활성</span>
+      {% else %}
+      <span class="badge badge-dead ms-1" title="{{ kw.disabled_reason or '' }}">비활성</span>
+      {% endif %}
+    </div>
+    <a href="/keywords/{{ kw.id }}/edit" class="ms-auto btn btn-sm btn-outline-secondary" style="font-size:0.75rem;">
+      <i class="bi bi-pencil"></i> 키워드 수정
+    </a>
+  </div>
+</div>
+
+{# ── 일자별 수집 추이 ── #}
+<div class="card">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <span><i class="bi bi-bar-chart-line text-primary"></i> 일자별 수집 URL 건수 (최근 {{ days }}일, 합계 {{ "{:,}".format(total) }}건)</span>
+    <div class="d-flex gap-1">
+      {% for n in stats_days_choices %}
+      <a href="/keywords/{{ kw.id }}/stats?days={{ n }}"
+         class="btn btn-sm {% if days == n %}btn-dark{% else %}btn-outline-secondary{% endif %}"
+         style="font-size:0.75rem;">{{ n }}일</a>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="card-body">
+    <div id="keywordDailyChart" style="position:relative;"></div>
+
+    {# 차트와 동일한 데이터의 표 — 스크린리더/키보드 접근 및 정확한 수치 확인용 #}
+    <div class="table-responsive mt-3">
+      <table class="table table-sm mb-0" style="font-size:0.78rem;">
+        <thead>
+          <tr>
+            <th>날짜</th>
+            {% for d in daily %}<th class="text-end">{{ d.label }}</th>{% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="text-muted">수집 건수</td>
+            {% for d in daily %}
+            <td class="text-end">{{ "{:,}".format(d.count) if d.count else "—" }}</td>
+            {% endfor %}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const data = {{ daily | tojson | safe }};
+  const container = document.getElementById('keywordDailyChart');
+  if (!container || data.length === 0) return;
+
+  const COLOR_BAR     = '#2563eb';
+  const COLOR_GRID    = '#e2e8f0';
+  const COLOR_AXIS    = '#64748b';
+  const COLOR_SURFACE = '#ffffff';
+
+  const width = 760, height = 220;
+  const padL = 42, padR = 16, padT = 16, padB = 26;
+  const plotW = width - padL - padR;
+  const plotH = height - padT - padB;
+
+  const maxObserved = Math.max(...data.map(d => d.count));
+  const step = maxObserved <= 10 ? 2 : (maxObserved <= 50 ? 10 : (maxObserved <= 200 ? 50 : 100));
+  const yMax = Math.max(step, Math.ceil((maxObserved * 1.15) / step) * step);
+
+  const bandW = plotW / data.length;
+  const barW = Math.min(24, bandW * 0.6);
+  const xAt = i => padL + bandW * i + bandW / 2;
+  const yAt = v => padT + plotH - (v / yMax) * plotH;
+
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  svg.setAttribute('width', '100%');
+  svg.setAttribute('height', height);
+  svg.style.display = 'block';
+  svg.style.overflow = 'visible';
+  svg.setAttribute('tabindex', '0');
+
+  function svgEl(tag, attrs) {
+    const el = document.createElementNS(svgNS, tag);
+    for (const k in attrs) el.setAttribute(k, attrs[k]);
+    return el;
+  }
+
+  // 가로 그리드라인 + y축 라벨 (0 ~ yMax, 4등분, 천단위 콤마)
+  const GRID_COUNT = 4;
+  for (let i = 0; i <= GRID_COUNT; i++) {
+    const v = Math.round(yMax * i / GRID_COUNT);
+    const y = yAt(v);
+    svg.appendChild(svgEl('line', {
+      x1: padL, x2: width - padR, y1: y, y2: y,
+      stroke: COLOR_GRID, 'stroke-width': 1,
+    }));
+    const label = svgEl('text', {
+      x: padL - 8, y: y + 3, 'text-anchor': 'end',
+      'font-size': 10, fill: COLOR_AXIS,
+    });
+    label.textContent = v.toLocaleString();
+    svg.appendChild(label);
+  }
+
+  // x축 날짜 라벨
+  data.forEach((d, i) => {
+    const label = svgEl('text', {
+      x: xAt(i), y: height - 8, 'text-anchor': 'middle',
+      'font-size': 10, fill: COLOR_AXIS,
+    });
+    label.textContent = d.label;
+    svg.appendChild(label);
+  });
+
+  const bars = [];
+  data.forEach((d, i) => {
+    const x = xAt(i) - barW / 2;
+    const y = yAt(d.count);
+    const h = padT + plotH - y;
+    const rect = svgEl('rect', {
+      x, y, width: barW, height: Math.max(h, 0),
+      fill: COLOR_BAR, rx: 4, ry: 4,
+    });
+    svg.appendChild(rect);
+    bars.push(rect);
+
+    // 히트 타겟은 막대 폭만이 아니라 자기 밴드 전체(0~yMax 세로 전체) — 값이 작아도 놓치지 않게
+    const hit = svgEl('rect', {
+      x: padL + bandW * i, y: padT, width: bandW, height: plotH,
+      fill: 'transparent', 'data-index': i,
+    });
+    svg.appendChild(hit);
+  });
+
+  svg.appendChild(svgEl('line', {
+    x1: padL, x2: width - padR, y1: yAt(0), y2: yAt(0),
+    stroke: COLOR_AXIS, 'stroke-width': 1,
+  }));
+
+  container.appendChild(svg);
+
+  const tooltip = document.createElement('div');
+  tooltip.style.cssText =
+    'position:absolute; pointer-events:none; background:#1e293b; color:#fff; ' +
+    'font-size:0.72rem; padding:6px 10px; border-radius:6px; opacity:0; ' +
+    'transition:opacity 0.1s; white-space:nowrap; z-index:10; transform:translate(-50%,-100%);';
+  container.appendChild(tooltip);
+
+  let currentIndex = null;
+
+  function showAt(index) {
+    currentIndex = index;
+    const d = data[index];
+    bars.forEach((r, i) => r.setAttribute('fill', i === index ? '#1d4ed8' : COLOR_BAR));
+
+    const x = xAt(index);
+    const pct = width ? (x / width * 100) : 0;
+    tooltip.textContent = '';
+    const line1 = document.createElement('div');
+    line1.style.cssText = 'font-weight:600; margin-bottom:2px;';
+    line1.textContent = d.label;
+    const line2 = document.createElement('div');
+    line2.textContent = `수집 ${d.count.toLocaleString()}건`;
+    tooltip.appendChild(line1);
+    tooltip.appendChild(line2);
+    tooltip.style.left = pct + '%';
+    tooltip.style.top = (yAt(d.count) - 10) + 'px';
+    tooltip.style.opacity = 1;
+  }
+
+  function hide() {
+    currentIndex = null;
+    bars.forEach(r => r.setAttribute('fill', COLOR_BAR));
+    tooltip.style.opacity = 0;
+  }
+
+  svg.addEventListener('pointermove', (e) => {
+    const rect = svg.getBoundingClientRect();
+    const relX = (e.clientX - rect.left) / rect.width * width;
+    let idx = Math.floor((relX - padL) / bandW);
+    idx = Math.max(0, Math.min(data.length - 1, idx));
+    showAt(idx);
+  });
+  svg.addEventListener('pointerleave', hide);
+  svg.addEventListener('focus', () => showAt(currentIndex !== null ? currentIndex : data.length - 1));
+  svg.addEventListener('blur', hide);
+  svg.addEventListener('keydown', (e) => {
+    const cur = currentIndex !== null ? currentIndex : data.length - 1;
+    if (e.key === 'ArrowLeft' && cur > 0) showAt(cur - 1);
+    if (e.key === 'ArrowRight' && cur < data.length - 1) showAt(cur + 1);
+  });
+})();
+</script>
+{% endblock %}

@@ -14,13 +14,13 @@
 
 {# ── 소스 필터 탭 ── #}
 <div class="d-flex gap-2 mb-3 flex-wrap">
-  <a href="/keywords?enabled={{ filter_enabled }}&search={{ search }}&sort={{ sort_by }}&order={{ sort_order }}"
+  <a href="/keywords?enabled={{ filter_enabled }}&search={{ search }}&sort={{ sort_by }}&order={{ sort_order }}&stats_days={{ stats_days }}"
      class="btn btn-sm {% if not filter_source %}btn-dark{% else %}btn-outline-secondary{% endif %}"
      style="font-size:0.78rem;">
     전체
   </a>
   {% for row in counts %}
-  <a href="/keywords?source_type={{ row.source_type }}&enabled={{ filter_enabled }}&search={{ search }}&sort={{ sort_by }}&order={{ sort_order }}"
+  <a href="/keywords?source_type={{ row.source_type }}&enabled={{ filter_enabled }}&search={{ search }}&sort={{ sort_by }}&order={{ sort_order }}&stats_days={{ stats_days }}"
      class="btn btn-sm {% if filter_source == row.source_type %}btn-dark{% else %}btn-outline-secondary{% endif %}"
      style="font-size:0.78rem;">
     {{ row.source_type }}
@@ -45,12 +45,18 @@
       <option value="true"  {% if filter_enabled=='true'  %}selected{% endif %}>활성만</option>
       <option value="false" {% if filter_enabled=='false' %}selected{% endif %}>비활성만</option>
     </select>
+    <select name="stats_days" class="form-select form-select-sm" style="width:auto; font-size:0.8rem;"
+            title="합계 컬럼 집계 기간">
+      {% for n in stats_days_choices %}
+      <option value="{{ n }}" {% if stats_days == n %}selected{% endif %}>최근 {{ n }}일 합계</option>
+      {% endfor %}
+    </select>
     <button type="submit" class="btn btn-sm btn-primary" style="font-size:0.78rem;">검색</button>
     {% if search or filter_enabled %}
-    <a href="/keywords?source_type={{ filter_source }}&sort={{ sort_by }}&order={{ sort_order }}"
+    <a href="/keywords?source_type={{ filter_source }}&sort={{ sort_by }}&order={{ sort_order }}&stats_days={{ stats_days }}"
        class="btn btn-sm btn-outline-secondary" style="font-size:0.78rem;">초기화</a>
     {% endif %}
-    <a href="/keywords/export.xlsx?source_type={{ filter_source }}&enabled={{ filter_enabled }}&search={{ search }}&sort={{ sort_by }}&order={{ sort_order }}"
+    <a href="/keywords/export.xlsx?source_type={{ filter_source }}&enabled={{ filter_enabled }}&search={{ search }}&sort={{ sort_by }}&order={{ sort_order }}&stats_days={{ stats_days }}"
        class="btn btn-sm btn-outline-success" style="font-size:0.78rem;" title="현재 조회 조건으로 엑셀 다운로드">
       <i class="bi bi-file-earmark-excel"></i> 엑셀 다운로드
     </a>
@@ -64,7 +70,7 @@
     <table class="table table-hover mb-0">
       {% macro sort_link(col, label, cls="") %}
         {% set next_order = "desc" if (sort_by == col and sort_order == "asc") else "asc" %}
-        {% set href = "/keywords?source_type=" ~ filter_source ~ "&enabled=" ~ filter_enabled ~ "&search=" ~ search ~ "&sort=" ~ col ~ "&order=" ~ next_order %}
+        {% set href = "/keywords?source_type=" ~ filter_source ~ "&enabled=" ~ filter_enabled ~ "&search=" ~ search ~ "&sort=" ~ col ~ "&order=" ~ next_order ~ "&stats_days=" ~ stats_days %}
         <a href="{{ href }}" class="text-decoration-none text-reset d-inline-flex align-items-center gap-1 {{ cls }}">
           {{ label }}
           {% if sort_by == col %}
@@ -83,6 +89,13 @@
           <th>{{ sort_link("interval_seconds", "주기") }}</th>
           <th>{{ sort_link("next_discover_at", "다음 수집") }}</th>
           <th>{{ sort_link("enabled", "상태") }}</th>
+          <th class="text-end">
+            {{ sort_link("total_collected", "최근 " ~ stats_days ~ "일 합계") }}
+            <i class="bi bi-info-circle text-muted ms-1"
+               style="font-size:0.75rem; cursor:pointer;"
+               data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-placement="top"
+               data-bs-content="숫자를 클릭하면 이 키워드의 일자별 수집 추이를 볼 수 있습니다."></i>
+          </th>
           <th class="text-end">액션</th>
         </tr>
       </thead>
@@ -119,6 +132,13 @@
             {% else %}
             <span class="badge badge-dead" title="{{ kw.disabled_reason or '' }}">비활성</span>
             {% endif %}
+          </td>
+          <td class="text-end">
+            <a href="/keywords/{{ kw.id }}/stats?days={{ stats_days }}"
+               class="text-decoration-none fw-medium {% if kw.total_collected == 0 %}text-muted{% endif %}"
+               title="일자별 수집 추이 보기">
+              {{ "{:,}".format(kw.total_collected) }}
+            </a>
           </td>
           <td class="text-end">
             <div class="d-flex justify-content-end gap-1">
@@ -183,11 +203,19 @@
         {% endif %}
 
         {% else %}
-        <tr><td colspan="8" class="text-center text-muted py-5">등록된 키워드가 없습니다.</td></tr>
+        <tr><td colspan="9" class="text-center text-muted py-5">등록된 키워드가 없습니다.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
 
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll('[data-bs-toggle="popover"]').forEach(el => {
+    new bootstrap.Popover(el, { sanitize: false });
+  });
+</script>
 {% endblock %}

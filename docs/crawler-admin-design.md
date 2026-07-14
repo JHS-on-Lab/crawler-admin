@@ -107,8 +107,16 @@ Bootstrap 5 + Bootstrap Icons 는 CDN으로 로드한다.
 | 수정 | `GET/POST /keywords/{id}/edit` | keyword, display_name, priority, interval_seconds (source_type 변경 불가) |
 | 활성/비활성 | `POST /keywords/{id}/toggle` | 비활성화 시 `disabled_reason` 기록 |
 | 즉시 수집 | `POST /keywords/{id}/trigger` | `next_discover_at = NULL` 로 업데이트 → 다음 루프에서 즉시 처리 |
+| 일자별 수집 추이 | `GET /keywords/{id}/stats?days=7\|14\|30` | 키워드 1개의 `collected_date` 별 URL 수집 건수 |
 
 **source_type 값**: `NAVER_NEWS`, `DAUM_NEWS`, `GOOGLE_NEWS`, `BAIDU_NEWS`, `NAVER_STOCK`, `DUCKDUCKGO_NEWS`
+
+**최근 N일 합계 컬럼**: 목록 화면에 `t_crawl_url` 을 `keyword_id` 로 집계한 `total_collected`
+(기본 최근 7일, 14/30일 전환 가능)를 정렬 가능한 컬럼으로 붙인다. 운영 DB 기준 키워드가
+~1000개까지 있어 행마다 일별 스파크라인을 그리면 DOM이 무거워지고 눈으로 훑기도 어려워서,
+**목록에는 합계 숫자만**(정렬로 상위/하위를 바로 찾음) 두고 **일자별 상세는 숫자 클릭 시
+`/keywords/{id}/stats`로 이동**하는 구조로 분리했다 — 렌더링 비용이 항상 "지금 보는 키워드
+1개" 기준이라 전체 키워드 수와 무관하게 가볍다.
 
 ### 3.3 실패 URL 재투입 (`/urls`)
 

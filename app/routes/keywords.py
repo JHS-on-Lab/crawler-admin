@@ -1,6 +1,8 @@
 """키워드 CRUD."""
 
-from fastapi import APIRouter, Depends, Form, Request
+from datetime import date, timedelta
+
+from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import RedirectResponse, Response
 
 from app.csrf import verify_csrf
@@ -13,6 +15,10 @@ from app.excel import ExcelColumn, xlsx_response
 router = APIRouter(prefix="/keywords")
 
 SOURCE_TYPES = ["NAVER_NEWS", "DAUM_NEWS", "GOOGLE_NEWS", "BAIDU_NEWS", "NAVER_STOCK", "DUCKDUCKGO_NEWS"]
+
+# "최근 N일 합계" 컬럼 / 상세 페이지 공용 프리셋. 그 외 값이 들어오면 기본값으로 취급.
+STATS_DAYS_CHOICES = (7, 14, 30)
+DEFAULT_STATS_DAYS = 7
 
 _EXPORT_COLUMNS = [
     ExcelColumn("id", "ID"),
@@ -27,6 +33,10 @@ _EXPORT_COLUMNS = [
 ]
 
 
+def _clean_stats_days(stats_days: int) -> int:
+    return stats_days if stats_days in STATS_DAYS_CHOICES else DEFAULT_STATS_DAYS
+
+
 @router.get("")
 async def list_keywords(
     request: Request,
@@ -35,9 +45,13 @@ async def list_keywords(
     search: str = "",
     sort: str = "",
     order: str = "asc",
+    stats_days: int = Query(DEFAULT_STATS_DAYS),
 ):
     if order not in ("asc", "desc"):
         order = "asc"
+    stats_days = _clean_stats_days(stats_days)
+    stats_from_date = date.today() - timedelta(days=stats_days - 1)
+
     with get_engine().connect() as conn:
         keywords = keyword_repo.list_keywords(
             conn,
@@ -46,6 +60,7 @@ async def list_keywords(
             search=search or None,
             sort_by=sort or None,
             sort_order=order,
+            stats_from_date=stats_from_date,
         )
         counts = keyword_repo.get_source_type_counts(conn)
 
@@ -61,6 +76,8 @@ async def list_keywords(
         "search": search,
         "sort_by": sort,
         "sort_order": order,
+        "stats_days": stats_days,
+        "stats_days_choices": STATS_DAYS_CHOICES,
         "flash": flash,
     })
 
@@ -72,10 +89,14 @@ async def export_keywords(
     search: str = "",
     sort: str = "",
     order: str = "asc",
+    stats_days: int = Query(DEFAULT_STATS_DAYS),
 ) -> Response:
     """현재 화면의 검색·필터·정렬 조건을 그대로 적용해 조회 결과를 엑셀로 내려받는다."""
     if order not in ("asc", "desc"):
         order = "asc"
+    stats_days = _clean_stats_days(stats_days)
+    stats_from_date = date.today() - timedelta(days=stats_days - 1)
+
     with get_engine().connect() as conn:
         keywords = keyword_repo.list_keywords(
             conn,
@@ -84,8 +105,47 @@ async def export_keywords(
             search=search or None,
             sort_by=sort or None,
             sort_order=order,
+            stats_from_date=stats_from_date,
         )
-    return xlsx_response(keywords, _EXPORT_COLUMNS, filename="키워드_관리", sheet_name="키워드")
+    export_columns = _EXPORT_COLUMNS + [
+        ExcelColumn("total_collected", f"최근 {stats_days}일 수집 수"),
+    ]
+    return xlsx_response(keywords, export_columns, filename="키워드_관리", sheet_name="키워드")
+
+
+@router.get("/{keyword_id}/stats")
+async def keyword_stats(request: Request, keyword_id: int, days: int = Query(DEFAULT_STATS_DAYS)):
+    """키워드 1개의 일자별 수집 URL 건수 — 목록의 "합계" 클릭 시 드릴다운."""
+    days = _clean_stats_days(days)
+    from_date = date.today() - timedelta(days=days - 1)
+
+    with get_engine().connect() as conn:
+        kw = keyword_repo.get_keyword(conn, keyword_id)
+        if not kw:
+            _flash(request, "키워드를 찾을 수 없습니다.", "danger")
+            return RedirectResponse("/keywords", status_code=303)
+        raw_counts = keyword_repo.get_daily_counts(conn, keyword_id, from_date)
+
+    by_date = {r["collected_date"].isoformat(): r["cnt"] for r in raw_counts}
+    daily = []
+    for i in range(days - 1, -1, -1):
+        d = date.today() - timedelta(days=i)
+        d_iso = d.isoformat()
+        daily.append({
+            "date": d_iso,
+            "label": d.strftime("%m/%d"),
+            "count": int(by_date.get(d_iso, 0)),
+        })
+
+    return templates.TemplateResponse("keywords/stats.html", {
+        "request": request,
+        "active_page": "keywords",
+        "kw": kw,
+        "daily": daily,
+        "days": days,
+        "stats_days_choices": STATS_DAYS_CHOICES,
+        "total": sum(d["count"] for d in daily),
+    })
 
 
 @router.get("/new")
