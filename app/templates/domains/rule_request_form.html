@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}규칙 요청 폼 — Crawler Admin{% endblock %}
+{% block page_title %}규칙 요청 폼{% endblock %}
+{% block page_subtitle %}실패 상위 도메인의 에러메시지·예시 URL을 정리해 추출 규칙 작성에 활용{% endblock %}
+
+{% block content %}
+
+{# ── Filter Bar ── #}
+<form method="get" action="/domains/rule-request-form">
+  <div class="filter-bar mb-3">
+    <i class="bi bi-search text-muted"></i>
+    <input type="text" name="search" class="form-control form-control-sm"
+           style="width:240px;" placeholder="도메인 검색..." value="{{ search }}">
+    <select name="rules_filter" class="form-select form-select-sm" style="width:auto; font-size:0.8rem;">
+      <option value=""         {% if not rules_filter        %}selected{% endif %}>전체 규칙</option>
+      <option value="active"   {% if rules_filter == 'active'   %}selected{% endif %}>규칙 활성</option>
+      <option value="inactive" {% if rules_filter == 'inactive' %}selected{% endif %}>규칙 비활성</option>
+      <option value="none"     {% if rules_filter == 'none'     %}selected{% endif %}>규칙 없음</option>
+    </select>
+    <select name="excluded_filter" class="form-select form-select-sm" style="width:auto; font-size:0.8rem;">
+      <option value=""            {% if not excluded_filter                %}selected{% endif %}>전체 차단상태</option>
+      <option value="blocked"     {% if excluded_filter == 'blocked'     %}selected{% endif %}>차단됨</option>
+      <option value="not_blocked" {% if excluded_filter == 'not_blocked' %}selected{% endif %}>정상</option>
+    </select>
+    <select name="limit" class="form-select form-select-sm" style="width:auto; font-size:0.8rem;">
+      {% for n in [10, 15, 20, 30, 50] %}
+      <option value="{{ n }}" {% if limit == n %}selected{% endif %}>상위 {{ n }}개</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-sm btn-primary" style="font-size:0.78rem;">생성</button>
+    <a href="/domains" class="btn btn-sm btn-outline-secondary" style="font-size:0.78rem;">도메인 목록으로</a>
+    <span class="ms-auto text-muted" style="font-size:0.78rem;">{{ entries|length }}개 도메인</span>
+  </div>
+</form>
+
+{# ── Result ── #}
+<div class="card">
+  <div class="card-header d-flex align-items-center justify-content-between py-2">
+    <span style="font-size:0.85rem;" class="fw-semibold">
+      <i class="bi bi-clipboard-data"></i> 실패 상위 도메인 — 에러메시지별 예시 URL
+    </span>
+    <button class="btn btn-sm btn-outline-primary" style="font-size:0.75rem;"
+            onclick="copyToClipboard(this)" data-copy-text="{{ form_text }}">
+      <i class="bi bi-clipboard"></i> 전체 복사
+    </button>
+  </div>
+  <div class="card-body p-0">
+    {% if entries %}
+    <pre class="mb-0 p-3" style="font-size:0.8rem; white-space:pre-wrap; word-break:break-all;">{{ form_text }}</pre>
+    {% else %}
+    <div class="text-center text-muted py-5">
+      <i class="bi bi-globe2 d-block mb-2" style="font-size:1.5rem;"></i>
+      조건에 맞는 도메인이 없습니다.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

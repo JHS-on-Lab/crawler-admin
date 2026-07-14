@@ -2,14 +2,14 @@
 
 import json
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import RedirectResponse, Response
 
 from app.csrf import verify_csrf
 from app.flash import flash as _flash
 from app.tmpl import templates
 from app.repository.db import get_engine
-from app.repository import domain_repo
+from app.repository import crawl_url_repo, domain_repo
 from app.excel import ExcelColumn, xlsx_response
 
 router = APIRouter(prefix="/domains")
@@ -88,6 +88,57 @@ async def export_domains(
             sort_order=order,
         )
     return xlsx_response(domains, _EXPORT_COLUMNS, filename="도메인_규칙", sheet_name="도메인 규칙")
+
+
+_MAX_GROUPS_PER_DOMAIN = 3  # 도메인 하나당 보여줄 서로 다른 에러메시지 그룹 수
+
+
+def _format_domain_block(host: str, groups: list[dict]) -> str:
+    if not groups:
+        return f"도메인\n{host}\n\n에러메시지\n-\n\n예시 URL\n-"
+    parts = [f"도메인\n{host}"]
+    for g in groups[:_MAX_GROUPS_PER_DOMAIN]:
+        msg = g["error_msg"] or "-"
+        urls = "\n".join(g["urls"]) or "-"
+        parts.append(f"에러메시지 ({g['count']}건)\n{msg}\n예시 URL\n{urls}")
+    return "\n\n".join(parts)
+
+
+@router.get("/rule-request-form")
+async def rule_request_form(
+    request: Request,
+    search: str = "",
+    rules_filter: str = "none",
+    excluded_filter: str = "not_blocked",
+    limit: int = Query(15, ge=1, le=100),
+):
+    """실패 상위 도메인들의 (도메인/에러메시지/예시 URL)을 추출 규칙 작성용으로 정리해 보여준다."""
+    with get_engine().connect() as conn:
+        domains = domain_repo.list_domains(
+            conn,
+            search=search or None,
+            rules_filter=rules_filter or None,
+            excluded_filter=excluded_filter or None,
+        )[:limit]
+        entries = [
+            {"host": d["host"], "groups": crawl_url_repo.get_failure_groups(conn, d["host"])}
+            for d in domains
+        ]
+
+    form_text = "\n\n---\n\n".join(
+        _format_domain_block(e["host"], e["groups"]) for e in entries
+    )
+
+    return templates.TemplateResponse("domains/rule_request_form.html", {
+        "request": request,
+        "active_page": "domains",
+        "entries": entries,
+        "form_text": form_text,
+        "search": search,
+        "rules_filter": rules_filter,
+        "excluded_filter": excluded_filter,
+        "limit": limit,
+    })
 
 
 @router.post("/{host:path}/toggle-rules", dependencies=[Depends(verify_csrf)])

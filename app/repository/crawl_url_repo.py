@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections import Counter, defaultdict
+
 from sqlalchemy import Connection, bindparam, text
 
 PAGE_SIZE = 50
@@ -75,6 +77,36 @@ def list_failed_urls(
     """), {k: v for k, v in params.items() if k not in ("limit", "offset")}).scalar()
 
     return rows, total or 0
+
+
+def get_failure_groups(
+    conn: Connection, host: str, max_urls_per_group: int = 3, scan_limit: int = 500,
+) -> list[dict]:
+    """host의 실패 URL을 last_error_msg 로 그룹핑해 건수 내림차순으로 반환.
+
+    그룹당 예시 URL은 최근 것부터 max_urls_per_group개까지만 담는다. 실패 건수가
+    많은 도메인이라도 최근 scan_limit건만 훑어 집계 부담을 제한한다(도메인 규칙
+    작성 참고용이라 정확한 전체 카운트보다 최근 경향 파악이 목적).
+    """
+    rows = conn.execute(text("""
+        SELECT url, last_error_msg
+        FROM t_crawl_url
+        WHERE host = :host AND status IN ('failed_transient','failed_permanent','dead')
+        ORDER BY updated_at DESC
+        LIMIT :scan_limit
+    """), {"host": host, "scan_limit": scan_limit}).mappings().all()
+
+    counts: Counter = Counter(row["last_error_msg"] for row in rows)
+    urls_by_msg: dict[str | None, list[str]] = defaultdict(list)
+    for row in rows:
+        msg = row["last_error_msg"]
+        if len(urls_by_msg[msg]) < max_urls_per_group:
+            urls_by_msg[msg].append(row["url"])
+
+    return [
+        {"error_msg": msg, "count": cnt, "urls": urls_by_msg[msg]}
+        for msg, cnt in counts.most_common()
+    ]
 
 
 def reinject(conn: Connection, url_id: int) -> bool:
