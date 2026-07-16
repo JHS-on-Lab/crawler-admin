@@ -43,7 +43,7 @@ FastAPI (uvicorn)
   │  SessionMiddleware (signed cookie)
   │  RequireLoginMiddleware
   │
-  ├── GET/POST /login, /logout
+  ├── GET/POST /login, GET /logout
   ├── GET /               → dashboard.py
   ├── GET/POST /keywords  → keywords.py
   ├── GET/POST /urls      → urls.py
@@ -94,9 +94,13 @@ Bootstrap 5 + Bootstrap Icons 는 CDN으로 로드한다.
 ### 3.1 대시보드 (`/`)
 
 - **t_crawl_url 상태 요약**: `discovered` / `extracting` / `stored` / `failed_*` / `dead` 건수
-- **소스별 현황**: `source_type` × `status` 교차 집계
 - **키워드 현황**: `source_type` 별 전체 / 활성 키워드 수
-- **최근 수집 이력**: `t_collection_log` 최근 10건
+- **일자별 수집/추출 요약**: 날짜 선택(기본 오늘)에 대한 `t_collection_log` 기반 discovery/extraction 요약
+- **추출 실패율 추이**: 최근 7일(`FAILURE_TREND_DAYS`) 추출 실패율 SVG 라인 차트(hover/키보드 인터랙션)
+
+> `crawl_url_repo.get_status_summary_by_source()`(`source_type`×`status` 교차 집계)와
+> `collection_log_repo.get_daily_summary()`는 리포지토리에 구현돼 있지만 현재 어떤 라우트에서도
+> 호출되지 않는 미사용 코드다 — 향후 대시보드 확장 시 재사용하거나 정리 대상.
 
 ### 3.2 키워드 관리 (`/keywords`)
 
@@ -108,8 +112,10 @@ Bootstrap 5 + Bootstrap Icons 는 CDN으로 로드한다.
 | 활성/비활성 | `POST /keywords/{id}/toggle` | 비활성화 시 `disabled_reason` 기록 |
 | 즉시 수집 | `POST /keywords/{id}/trigger` | `next_discover_at = NULL` 로 업데이트 → 다음 루프에서 즉시 처리 |
 | 일자별 수집 추이 | `GET /keywords/{id}/stats?days=7\|14\|30` | 키워드 1개의 `collected_date` 별 URL 수집 건수 |
+| Excel 내보내기 | `GET /keywords/export.xlsx` | 현재 필터/정렬 기준 목록을 xlsx로 다운로드 |
 
-**source_type 값**: `NAVER_NEWS`, `DAUM_NEWS`, `GOOGLE_NEWS`, `BAIDU_NEWS`, `NAVER_STOCK`, `DUCKDUCKGO_NEWS`
+**source_type 값**: `NAVER_NEWS`, `DAUM_NEWS`, `GOOGLE_NEWS`, `BAIDU_NEWS`, `NAVER_STOCK`, `DUCKDUCKGO_NEWS`(운영상 비활성 — 드롭다운/스키마에는 남아있으나 실제 대상 키워드 없음)
+(`/keywords`, `/logs` 기준. `/urls` 페이지는 여기에 `SOLR_RESCRAPE`가 추가된 7개 값을 필터로 제공한다 — rescrape-dispatcher가 Solr를 거쳐 `t_crawl_url`에 넣은 URL을 구분하기 위함.)
 
 **최근 N일 합계 컬럼**: 목록 화면에 `t_crawl_url` 을 `keyword_id` 로 집계한 `total_collected`
 (기본 최근 7일, 14/30일 전환 가능)를 정렬 가능한 컬럼으로 붙인다. 운영 DB 기준 키워드가
@@ -141,9 +147,12 @@ Bootstrap 5 + Bootstrap Icons 는 CDN으로 로드한다.
 |---|---|---|
 | 목록 조회 | `GET /domains` | host 검색, `recent_fail_count` 내림차순 |
 | 규칙 활성/비활성 | `POST /domains/{host}/toggle-rules` | `rules_enabled` 토글 |
+| 제외(차단) 토글 | `POST /domains/{host}/toggle-excluded` | `excluded` 토글 — 크롤링 완전 차단 |
 | 쿨다운 해제 | `POST /domains/{host}/clear-cooldown` | `cooldown_until = NULL`, `recent_fail_count = 0` |
 | 규칙 편집 | `POST /domains/{host}/edit-rules` | `rules_json` JSON 편집 + `rules_version` 자동 증가 |
+| 신규 도메인 선제 차단 | `POST /domains/block` | 아직 크롤링 이력이 없는 host도 `t_domain`에 `excluded=1`로 upsert |
 | 규칙 요청 폼 생성 | `GET /domains/rule-request-form` | 실패 상위 도메인의 에러메시지·예시 URL을 정리해 복사 가능한 텍스트로 생성 |
+| Excel 내보내기 | `GET /domains/export.xlsx` | 현재 필터/정렬 기준 목록을 xlsx로 다운로드 |
 
 규칙 편집 시 저장 전 JSON 유효성 검증. 실패 시 플래시 메시지.
 저장된 규칙은 extraction-worker 가 TTL 캐시(기본 60초)로 자동 반영.
@@ -155,7 +164,7 @@ Bootstrap 5 + Bootstrap Icons 는 CDN으로 로드한다.
 현황을 정리하던 작업을 대체하기 위한 것 — extraction-worker 쪽 워크플로는
 `extraction-worker/docs/domain-rule-guide.md` 참고.
 
-`host` 는 네 라우트(`toggle-rules`/`toggle-excluded`/`clear-cooldown`/`edit-rules`) 모두
+`host` 는 다섯 라우트(`toggle-rules`/`toggle-excluded`/`clear-cooldown`/`edit-rules`/`block`) 모두
 `.strip().lower()` 로 정규화한 뒤 조회한다(크롤러가 저장한 host와 대소문자가 달라
 매칭에 실패하는 것을 방지). 대상 host가 `t_domain` 에 없으면(정규화해도 못 찾으면)
 성공 메시지 대신 "찾을 수 없습니다" flash를 표시한다 — 이전에는 조용히 아무 일도
@@ -207,9 +216,9 @@ app/
     base.html          # 다크 사이드바 레이아웃 (Bootstrap 5)
     login.html         # 인증 화면
     dashboard.html
-    keywords/list.html, form.html
+    keywords/list.html, form.html, stats.html
     urls/list.html
-    domains/list.html
+    domains/list.html, rule_request_form.html
     logs/list.html
 ```
 
@@ -230,7 +239,7 @@ Starlette 미들웨어는 추가 역순으로 실행된다.
 | 역할 | 라이브러리 |
 |---|---|
 | 웹 프레임워크 | FastAPI 0.115 + uvicorn |
-| 템플릿 | Jinja2 3.1 |
+| 템플릿 | Jinja2 3.1 + python-multipart(폼 파싱) |
 | 세션 | `starlette.middleware.sessions.SessionMiddleware` (itsdangerous 서명 쿠키) |
 | DB 접근 | SQLAlchemy 2.0 Core (ORM 미사용) + PyMySQL |
 | SSH 터널 | sshtunnel + paramiko |
@@ -247,7 +256,7 @@ Starlette 미들웨어는 추가 역순으로 실행된다.
 | `RDS_PORT` | `3306` | MySQL 포트 |
 | `RDS_USER` | (필수) | MySQL 사용자 |
 | `RDS_PASSWORD` | (필수) | MySQL 비밀번호 |
-| `RDS_CRAWLER_DB` | (필수) | 접속 스키마 (`crawlerdb`) |
+| `RDS_CRAWLER_DB` | (필수, 코드 기본값은 빈 문자열) | 접속 스키마 (배포용 `.env`는 `crawlerdb`) |
 | `TUNNEL_ENABLED` | `false` | SSH 터널 사용 여부 |
 | `TUNNEL_SSH_HOST` | — | SSH 서버 호스트 |
 | `TUNNEL_SSH_PORT` | `22` | SSH 서버 포트 |
@@ -257,7 +266,7 @@ Starlette 미들웨어는 추가 역순으로 실행된다.
 | `PORT` | `8000` | 웹 서버 포트 |
 | `ADMIN_USER` | `admin` | 관리자 로그인 아이디 |
 | `ADMIN_PASSWORD` | (필수) | 관리자 비밀번호 |
-| `SESSION_SECRET` | (필수) | 세션 쿠키 서명 키 (운영 환경에서 반드시 교체) |
+| `SESSION_SECRET` | 코드 기본값 `change-me` (배포용 `.env`는 `change-me-in-production`) | 세션 쿠키 서명 키. 두 플레이스홀더 값 모두 검증 실패를 유발하므로 운영 환경에서 반드시 교체 |
 | `LOG_DIR` | `./logs` | 로그 디렉토리 |
 | `LOG_LEVEL` | `INFO` | 로그 레벨 |
 | `LOG_ROTATION` | `daily` | 로그 로테이션 방식 (`daily` \| `size`) |
