@@ -1,5 +1,6 @@
 """키워드 CRUD."""
 
+import json
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, Form, Query, Request
@@ -15,6 +16,30 @@ from app.excel import ExcelColumn, xlsx_response
 router = APIRouter(prefix="/keywords")
 
 SOURCE_TYPES = ["NAVER_NEWS", "DAUM_NEWS", "GOOGLE_NEWS", "BAIDU_NEWS", "NAVER_STOCK", "DUCKDUCKGO_NEWS"]
+
+# t_keyword.source_options_json 을 실제로 쓰는(discovery-worker 가 apply_source_options()
+# 로 읽는) 소스 — 지금은 GOOGLE_NEWS 의 region 오버라이드 하나뿐이다.
+_SOURCE_OPTIONS_ENABLED = {"GOOGLE_NEWS"}
+
+
+def _region_from_options_json(source_options_json: str | None) -> str:
+    """t_keyword.source_options_json(원본 JSON 문자열)에서 region 값만 뽑는다.
+    없거나 파싱 실패하면 빈 문자열(폼 입력칸 기본값)."""
+    if not source_options_json:
+        return ""
+    try:
+        return json.loads(source_options_json).get("region") or ""
+    except (json.JSONDecodeError, AttributeError):
+        return ""
+
+
+def _build_options_json(source_type: str, region: str) -> str | None:
+    """폼에서 받은 region 을 t_keyword.source_options_json 원본 문자열로 만든다.
+    이 필드를 쓰지 않는 소스이거나 값이 비어있으면 None(컬럼 NULL)."""
+    region = region.strip()
+    if source_type not in _SOURCE_OPTIONS_ENABLED or not region:
+        return None
+    return json.dumps({"region": region})
 
 # "최근 N일 합계" 컬럼 / 상세 페이지 공용 프리셋. 그 외 값이 들어오면 기본값으로 취급.
 STATS_DAYS_CHOICES = (7, 14, 30)
@@ -154,7 +179,9 @@ async def new_keyword_form(request: Request):
         "request": request,
         "active_page": "keywords",
         "source_types": SOURCE_TYPES,
+        "source_options_enabled": sorted(_SOURCE_OPTIONS_ENABLED),
         "kw": None,
+        "region": "",
     })
 
 
@@ -166,10 +193,15 @@ async def create_keyword(
     display_name: str = Form(""),
     priority: int = Form(0),
     interval_seconds: int = Form(86400),
+    region: str = Form(""),
 ):
     try:
+        source_options_json = _build_options_json(source_type, region)
         with get_engine().connect() as conn:
-            keyword_repo.create_keyword(conn, keyword, source_type, display_name or None, priority, interval_seconds)
+            keyword_repo.create_keyword(
+                conn, keyword, source_type, display_name or None, priority, interval_seconds,
+                source_options_json=source_options_json,
+            )
         _flash(request, f"키워드 '{keyword}' ({source_type}) 가 등록되었습니다.")
     except Exception as e:
         _flash(request, f"등록 실패: {e}", "danger")
@@ -186,7 +218,9 @@ async def edit_keyword_form(request: Request, keyword_id: int):
         "request": request,
         "active_page": "keywords",
         "source_types": SOURCE_TYPES,
+        "source_options_enabled": sorted(_SOURCE_OPTIONS_ENABLED),
         "kw": kw,
+        "region": _region_from_options_json(kw.get("source_options_json")),
     })
 
 
@@ -198,10 +232,19 @@ async def update_keyword(
     display_name: str = Form(""),
     priority: int = Form(0),
     interval_seconds: int = Form(86400),
+    region: str = Form(""),
 ):
     try:
         with get_engine().connect() as conn:
-            keyword_repo.update_keyword(conn, keyword_id, keyword, display_name or None, priority, interval_seconds)
+            # source_type 은 폼에서 안 바뀌므로(수정 화면엔 select 가 없음) DB 값을
+            # 그대로 조회해서 region 적용 대상인지 판단한다.
+            kw = keyword_repo.get_keyword(conn, keyword_id)
+            source_type = kw["source_type"] if kw else ""
+            source_options_json = _build_options_json(source_type, region)
+            keyword_repo.update_keyword(
+                conn, keyword_id, keyword, display_name or None, priority, interval_seconds,
+                source_options_json=source_options_json,
+            )
         _flash(request, "키워드가 수정되었습니다.")
     except Exception as e:
         _flash(request, f"수정 실패: {e}", "danger")

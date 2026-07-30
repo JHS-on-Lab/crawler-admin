@@ -63,7 +63,7 @@ def list_failed_urls(
     rows = conn.execute(text(f"""
         SELECT cu.id, cu.url, cu.host, cu.source_type, cu.status,
                cu.attempt_count, cu.last_error_code, cu.last_error_msg,
-               cu.updated_at, cu.priority,
+               cu.updated_at, cu.priority, cu.discovery_mode,
                k.keyword, k.display_name
         FROM t_crawl_url cu
         LEFT JOIN t_keyword k ON cu.keyword_id = k.id

@@ -93,16 +93,18 @@ def create_keyword(
     display_name: str | None,
     priority: int,
     interval_seconds: int,
+    source_options_json: str | None = None,
 ) -> None:
     conn.execute(text("""
-        INSERT INTO t_keyword (keyword, source_type, display_name, priority, interval_seconds, enabled)
-        VALUES (:keyword, :source_type, :display_name, :priority, :interval_seconds, true)
+        INSERT INTO t_keyword (keyword, source_type, display_name, priority, interval_seconds, enabled, source_options_json)
+        VALUES (:keyword, :source_type, :display_name, :priority, :interval_seconds, true, :source_options_json)
     """), {
         "keyword": keyword,
         "source_type": source_type,
         "display_name": display_name or None,
         "priority": priority,
         "interval_seconds": interval_seconds,
+        "source_options_json": source_options_json,
     })
     conn.commit()
 
@@ -114,17 +116,20 @@ def update_keyword(
     display_name: str | None,
     priority: int,
     interval_seconds: int,
+    source_options_json: str | None = None,
 ) -> None:
     conn.execute(text("""
         UPDATE t_keyword
         SET keyword = :keyword, display_name = :display_name,
-            priority = :priority, interval_seconds = :interval_seconds
+            priority = :priority, interval_seconds = :interval_seconds,
+            source_options_json = :source_options_json
         WHERE id = :id
     """), {
         "keyword": keyword,
         "display_name": display_name or None,
         "priority": priority,
         "interval_seconds": interval_seconds,
+        "source_options_json": source_options_json,
         "id": keyword_id,
     })
     conn.commit()
