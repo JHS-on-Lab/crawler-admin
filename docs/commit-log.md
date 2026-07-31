@@ -12,6 +12,12 @@
 
 ---
 
+## a10ffb5 — 2026-07-31
+docs: 리전 오버라이드 필드 안내에 hl/gl/RSS 폴백 동작 명시
+
+- app/templates/keywords/form.html
+- docs/commit-log.md
+
 ## 474b880 — 2026-07-31
 docs: 리전 오버라이드/discovery_mode 필드, duckduckgo 재활성화 문서 반영
 

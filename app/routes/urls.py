@@ -11,7 +11,7 @@ from app.repository import crawl_url_repo
 
 router = APIRouter(prefix="/urls")
 
-SOURCE_TYPES = ["NAVER_NEWS", "DAUM_NEWS", "GOOGLE_NEWS", "BAIDU_NEWS", "NAVER_STOCK", "DUCKDUCKGO_NEWS", "SOLR_RESCRAPE"]
+SOURCE_TYPES = ["NAVER_NEWS", "DAUM_NEWS", "GOOGLE_NEWS", "BAIDU_NEWS", "NAVER_STOCK", "DUCKDUCKGO_NEWS", "BAOMOI_NEWS", "SOLR_RESCRAPE"]
 # crawl_url_repo.FAIL_STATUSES 와 별도로 여기 목록을 두면 나중에 어긋날 수 있어
 # 하나의 정의를 그대로 가져다 쓴다.
 FAIL_STATUSES = list(crawl_url_repo.FAIL_STATUSES)
