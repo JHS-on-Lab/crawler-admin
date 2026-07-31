@@ -12,6 +12,12 @@
 
 ---
 
+## 474b880 — 2026-07-31
+docs: 리전 오버라이드/discovery_mode 필드, duckduckgo 재활성화 문서 반영
+
+- docs/commit-log.md
+- docs/crawler-admin-design.md
+
 ## d6a5ac4 — 2026-07-30
 feat: 구글 리전 오버라이드 폼 필드 + URL 목록에 discovery_mode 컬럼 추가
 

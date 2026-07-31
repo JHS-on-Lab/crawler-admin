@@ -56,9 +56,13 @@
               리전 오버라이드 <span class="text-muted fw-normal">(GOOGLE_NEWS 전용)</span>
             </label>
             <input type="text" name="region" class="form-control" style="font-size:0.875rem;"
-                   value="{{ region }}" placeholder="예: google.com 또는 google.com/?gl=us">
+                   value="{{ region }}" placeholder="예: google.com/?hl=vi&gl=vn&ceid=VN:vi">
             <div class="form-text" style="font-size:0.75rem;">
-              비워두면 기본 도메인(www.google.com) 사용. 도메인 뒤에 쿼리스트링(gl= 등)을 붙일 수 있음.
+              비워두면 기본값(도메인 www.google.com, hl=ko&gl=KR) 사용. 검색 결과 언어/지역까지
+              바꾸려면 도메인만으로는 부족하고 쿼리스트링에 <code>hl</code>(언어)·<code>gl</code>(국가)을
+              직접 지정해야 함(예: 베트남 <code>google.com/?hl=vi&gl=vn&ceid=VN:vi</code>).
+              봇 차단으로 RSS 폴백이 걸렸을 때도 이 쿼리스트링(hl/gl/ceid)이 그대로 쓰이며,
+              그때는 도메인 부분은 무시됨.
             </div>
           </div>
 
