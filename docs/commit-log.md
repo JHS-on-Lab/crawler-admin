@@ -12,6 +12,16 @@
 
 ---
 
+## d6a5ac4 — 2026-07-30
+feat: 구글 리전 오버라이드 폼 필드 + URL 목록에 discovery_mode 컬럼 추가
+
+- app/repository/crawl_url_repo.py
+- app/repository/keyword_repo.py
+- app/routes/keywords.py
+- app/templates/keywords/form.html
+- app/templates/urls/list.html
+- docs/commit-log.md
+
 ## fc93be9 — 2026-07-17
 docs: 커밋 로그 트래킹 파일 추가 (docs/commit-log.md)
 

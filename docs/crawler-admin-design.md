@@ -107,15 +107,20 @@ Bootstrap 5 + Bootstrap Icons 는 CDN으로 로드한다.
 | 기능 | 경로 | 설명 |
 |---|---|---|
 | 목록 조회 | `GET /keywords` | `source_type` / `enabled` 필터 |
-| 신규 등록 | `GET/POST /keywords/new` | keyword, source_type, display_name, priority, interval_seconds |
-| 수정 | `GET/POST /keywords/{id}/edit` | keyword, display_name, priority, interval_seconds (source_type 변경 불가) |
+| 신규 등록 | `GET/POST /keywords/new` | keyword, source_type, display_name, priority, interval_seconds, region(GOOGLE_NEWS 전용) |
+| 수정 | `GET/POST /keywords/{id}/edit` | keyword, display_name, priority, interval_seconds, region(GOOGLE_NEWS 전용) — source_type 변경 불가 |
 | 활성/비활성 | `POST /keywords/{id}/toggle` | 비활성화 시 `disabled_reason` 기록 |
 | 즉시 수집 | `POST /keywords/{id}/trigger` | `next_discover_at = NULL` 로 업데이트 → 다음 루프에서 즉시 처리 |
 | 일자별 수집 추이 | `GET /keywords/{id}/stats?days=7\|14\|30` | 키워드 1개의 `collected_date` 별 URL 수집 건수 |
 | Excel 내보내기 | `GET /keywords/export.xlsx` | 현재 필터/정렬 기준 목록을 xlsx로 다운로드 |
 
-**source_type 값**: `NAVER_NEWS`, `DAUM_NEWS`, `GOOGLE_NEWS`, `BAIDU_NEWS`, `NAVER_STOCK`, `DUCKDUCKGO_NEWS`(운영상 비활성 — 드롭다운/스키마에는 남아있으나 실제 대상 키워드 없음)
+**source_type 값**: `NAVER_NEWS`, `DAUM_NEWS`, `GOOGLE_NEWS`, `BAIDU_NEWS`, `NAVER_STOCK`, `DUCKDUCKGO_NEWS`
 (`/keywords`, `/logs` 기준. `/urls` 페이지는 여기에 `SOLR_RESCRAPE`가 추가된 7개 값을 필터로 제공한다 — rescrape-dispatcher가 Solr를 거쳐 `t_crawl_url`에 넣은 URL을 구분하기 위함.)
+
+**region (GOOGLE_NEWS 전용)**: `t_keyword.source_options_json`의 `{"region": "..."}`을 폼에서
+직접 편집한다(예: `google.com` 또는 `google.com/?gl=us`). 비워두면 컬럼이 NULL로 저장되고
+discovery-worker는 기본 도메인(`www.google.com`)을 쓴다. GOOGLE_NEWS 가 아닌 소스는 이 필드를
+읽지 않으므로 폼에서도 항상 숨겨진다.
 
 **최근 N일 합계 컬럼**: 목록 화면에 `t_crawl_url` 을 `keyword_id` 로 집계한 `total_collected`
 (기본 최근 7일, 14/30일 전환 가능)를 정렬 가능한 컬럼으로 붙인다. 운영 DB 기준 키워드가
@@ -136,6 +141,8 @@ Bootstrap 5 + Bootstrap Icons 는 CDN으로 로드한다.
 | 일괄 재투입 | `POST /urls/reinject-bulk` | 특정 실패 status 전체 재투입 |
 
 **재투입 동작**: `status`, `attempt_count`, `last_error_code`, `last_error_msg`, `next_retry_at` 초기화. extraction-worker 가 다음 루프에서 자동 처리.
+
+**발견 모드 컬럼**: `t_crawl_url.discovery_mode`(`search`/`rss`, GOOGLE_NEWS 만 값이 있고 나머지 소스는 항상 NULL)를 목록에 표시한다 — 구글의 `rss` 폴백(봇 차단 시 전환)으로 수집된 URL인지 구분해, 실패 패턴이 폴백 모드와 관련 있는지 파악할 때 참고한다.
 
 **서버측 검증**: 두 엔드포인트 모두 대상 URL이 실패 상태(`FAIL_STATUSES` = `failed_transient`/`failed_permanent`/`dead`)일 때만 실제로 갱신한다. 단건 재투입은 `WHERE id=:id AND status IN :fail_statuses` 조건으로, 일괄 재투입은 `status` 파라미터 자체를 사전 검증해서, 조작된 요청으로 이미 완료(`stored`)되거나 처리 중(`extracting`)인 URL이 초기화되는 것을 막는다. 대상이 아니면 실패 flash 메시지를 표시한다.
 
