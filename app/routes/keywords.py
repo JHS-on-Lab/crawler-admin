@@ -15,7 +15,7 @@ from app.excel import ExcelColumn, xlsx_response
 
 router = APIRouter(prefix="/keywords")
 
-SOURCE_TYPES = ["NAVER_NEWS", "DAUM_NEWS", "GOOGLE_NEWS", "BAIDU_NEWS", "NAVER_STOCK", "DUCKDUCKGO_NEWS", "BAOMOI_NEWS"]
+SOURCE_TYPES = ["NAVER_NEWS", "DAUM_NEWS", "GOOGLE_NEWS", "BAIDU_NEWS", "NAVER_STOCK", "DUCKDUCKGO_NEWS", "BAOMOI_NEWS", "TINHTE_FORUM"]
 
 # t_keyword.source_options_json 을 실제로 쓰는(discovery-worker 가 apply_source_options()
 # 로 읽는) 소스 — 지금은 GOOGLE_NEWS 의 region 오버라이드 하나뿐이다.

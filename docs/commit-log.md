@@ -12,6 +12,12 @@
 
 ---
 
+## c0f8305 — 2026-08-04
+chore: docker run --user 를 1001:1001 로 고정
+
+- deploy/run.sh
+- docs/commit-log.md
+
 ## 451d87a — 2026-07-31
 feat: BAOMOI_NEWS 소스 추가 반영 (키워드/URL/로그 관리 화면)
 
