@@ -12,6 +12,14 @@
 
 ---
 
+## 451d87a — 2026-07-31
+feat: BAOMOI_NEWS 소스 추가 반영 (키워드/URL/로그 관리 화면)
+
+- app/routes/keywords.py
+- app/routes/logs.py
+- app/routes/urls.py
+- docs/commit-log.md
+
 ## a10ffb5 — 2026-07-31
 docs: 리전 오버라이드 필드 안내에 hl/gl/RSS 폴백 동작 명시
 

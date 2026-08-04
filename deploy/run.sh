@@ -49,7 +49,7 @@ echo ""
 docker run \
     --detach \
     --name "${CONTAINER_NAME}" \
-    --user "$(id -u):$(id -g)" \
+    --user "1001:1001" \
     --restart unless-stopped \
     --env-file "${ENV_FILE}" \
     -e APP_ENV="${APP_ENV}" \
