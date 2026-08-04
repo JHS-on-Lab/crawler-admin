@@ -12,6 +12,14 @@
 
 ---
 
+## 63e7749 — 2026-08-04
+feat: TINHTE_FORUM 소스 추가 반영 (키워드/URL/로그 관리 화면)
+
+- app/routes/keywords.py
+- app/routes/logs.py
+- app/routes/urls.py
+- docs/commit-log.md
+
 ## c0f8305 — 2026-08-04
 chore: docker run --user 를 1001:1001 로 고정
 

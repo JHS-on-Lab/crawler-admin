@@ -114,8 +114,8 @@ Bootstrap 5 + Bootstrap Icons 는 CDN으로 로드한다.
 | 일자별 수집 추이 | `GET /keywords/{id}/stats?days=7\|14\|30` | 키워드 1개의 `collected_date` 별 URL 수집 건수 |
 | Excel 내보내기 | `GET /keywords/export.xlsx` | 현재 필터/정렬 기준 목록을 xlsx로 다운로드 |
 
-**source_type 값**: `NAVER_NEWS`, `DAUM_NEWS`, `GOOGLE_NEWS`, `BAIDU_NEWS`, `NAVER_STOCK`, `DUCKDUCKGO_NEWS`
-(`/keywords`, `/logs` 기준. `/urls` 페이지는 여기에 `SOLR_RESCRAPE`가 추가된 7개 값을 필터로 제공한다 — rescrape-dispatcher가 Solr를 거쳐 `t_crawl_url`에 넣은 URL을 구분하기 위함.)
+**source_type 값**: `NAVER_NEWS`, `DAUM_NEWS`, `GOOGLE_NEWS`, `BAIDU_NEWS`, `NAVER_STOCK`, `DUCKDUCKGO_NEWS`, `BAOMOI_NEWS`, `TINHTE_FORUM`
+(`/keywords`, `/logs` 기준. `/urls` 페이지는 여기에 `SOLR_RESCRAPE`가 추가된 9개 값을 필터로 제공한다 — rescrape-dispatcher가 Solr를 거쳐 `t_crawl_url`에 넣은 URL을 구분하기 위함.)
 
 **region (GOOGLE_NEWS 전용)**: `t_keyword.source_options_json`의 `{"region": "..."}`을 폼에서
 직접 편집한다(예: `google.com` 또는 `google.com/?gl=us`). 비워두면 컬럼이 NULL로 저장되고
