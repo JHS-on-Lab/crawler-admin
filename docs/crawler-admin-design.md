@@ -174,8 +174,8 @@ discovery-worker는 기본 도메인(`www.google.com`)을 쓴다. GOOGLE_NEWS �
 `host` 는 다섯 라우트(`toggle-rules`/`toggle-excluded`/`clear-cooldown`/`edit-rules`/`block`) 모두
 `.strip().lower()` 로 정규화한 뒤 조회한다(크롤러가 저장한 host와 대소문자가 달라
 매칭에 실패하는 것을 방지). 대상 host가 `t_domain` 에 없으면(정규화해도 못 찾으면)
-성공 메시지 대신 "찾을 수 없습니다" flash를 표시한다 — 이전에는 조용히 아무 일도
-안 일어나 실패 여부를 알 수 없었다.
+성공 메시지 대신 "찾을 수 없습니다" flash를 표시한다 — 조용히 아무 일도 안
+일어나면 실패 여부를 알 수 없기 때문이다.
 
 ### 3.5 수집 이력 (`/logs`)
 

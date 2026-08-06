@@ -12,6 +12,12 @@
 
 ---
 
+## db5c54a — 2026-08-04
+docs: source_type 값 목록에 BAOMOI_NEWS/TINHTE_FORUM 누락된 것 보완
+
+- docs/commit-log.md
+- docs/crawler-admin-design.md
+
 ## 63e7749 — 2026-08-04
 feat: TINHTE_FORUM 소스 추가 반영 (키워드/URL/로그 관리 화면)
 
