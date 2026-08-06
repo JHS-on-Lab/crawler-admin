@@ -12,6 +12,19 @@
 
 ---
 
+## 5f44f16 — 2026-08-06
+컨테이너 UID/GID 기본값을 1001에서 1000으로 변경
+
+- Dockerfile
+- deploy/build.sh
+
+## 631e23f — 2026-08-06
+fix: Dockerfile에 appuser 계정 생성 추가, build.sh에 APP_UID/APP_GID 전달
+
+- Dockerfile
+- deploy/build.sh
+- docs/commit-log.md
+
 ## ec59d15 — 2026-08-06
 run.sh 데이터 경로를 HOME 대신 고정 경로(DATA_ROOT)로 변경
 

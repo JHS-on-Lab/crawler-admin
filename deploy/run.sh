@@ -47,10 +47,12 @@ echo "  포트     : ${PORT}:8000"
 echo "  로그     : ${LOG_DIR}"
 echo ""
 
+# --user 를 명시하지 않는다 — 이미지가 배포 계정 UID/GID(1000)로 appuser 를
+# 만들고 USER appuser 로 고정돼 있어(Dockerfile/build.sh 참고), 여기서 따로
+# 지정하지 않아도 그 계정을 그대로 상속해 실행된다.
 docker run \
     --detach \
     --name "${CONTAINER_NAME}" \
-    --user "1001:1001" \
     --restart unless-stopped \
     --env-file "${ENV_FILE}" \
     -e APP_ENV="${APP_ENV}" \

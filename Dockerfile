@@ -18,8 +18,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends tzdata \
     && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
     && rm -rf /var/lib/apt/lists/*
 
-# 고정된 UID/GID(1001)를 쓰는 작업용 계정 생성 — 빌드한 사람과 무관하게 항상
-# 같은 값이어야 deploy/run.sh 의 --user 값과 어긋나지 않는다.
+# 이 서버의 crawler-admin 배포 계정 UID/GID(1000, build.sh가 --build-arg 로
+# 전달)로 작업용 계정을 만든다. deploy/run.sh 는 --user 를 따로 지정하지
+# 않고 이미지가 빌드 시점에 갖게 된 이 계정을 그대로 상속해 실행한다.
 RUN groupadd --gid "${APP_GID}" appgroup \
     && useradd \
         --uid "${APP_UID}" \
