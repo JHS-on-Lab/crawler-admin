@@ -5,6 +5,9 @@
 # ----------------------------------------------------------------
 FROM python:3.12-slim
 
+ARG APP_UID=1001
+ARG APP_GID=1001
+
 WORKDIR /app
 
 # ----------------------------------------------------------------
@@ -14,6 +17,17 @@ ENV TZ=Asia/Seoul
 RUN apt-get update && apt-get install -y --no-install-recommends tzdata \
     && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
     && rm -rf /var/lib/apt/lists/*
+
+# 고정된 UID/GID(1001)를 쓰는 작업용 계정 생성 — 빌드한 사람과 무관하게 항상
+# 같은 값이어야 deploy/run.sh 의 --user 값과 어긋나지 않는다.
+RUN groupadd --gid "${APP_GID}" appgroup \
+    && useradd \
+        --uid "${APP_UID}" \
+        --gid "${APP_GID}" \
+        --create-home \
+        --shell /bin/bash \
+        appuser \
+    && chown -R appuser:appgroup /app
 
 # ----------------------------------------------------------------
 # Python 패키지 설치
@@ -28,10 +42,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # .env.dev / .env.prod 는 이미지에 넣지 않는다 (.dockerignore 로 제외).
 #   → 환경별 접속 정보는 컨테이너 실행 시 --env-file 로 주입한다.
 # ----------------------------------------------------------------
-COPY app/ app/
-COPY .env .
+COPY --chown=appuser:appgroup app/ app/
+COPY --chown=appuser:appgroup .env .
 
-RUN chmod -R o+rX /app
+ENV HOME=/home/appuser
+
+USER appuser
 
 # ----------------------------------------------------------------
 # 웹 서버 포트
