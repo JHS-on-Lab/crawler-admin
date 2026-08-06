@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import RedirectResponse
 
+from app.constants import URL_SOURCE_TYPES as SOURCE_TYPES
 from app.csrf import verify_csrf
 from app.flash import flash as _flash
 from app.tmpl import templates
@@ -11,7 +12,6 @@ from app.repository import crawl_url_repo
 
 router = APIRouter(prefix="/urls")
 
-SOURCE_TYPES = ["NAVER_NEWS", "DAUM_NEWS", "GOOGLE_NEWS", "BAIDU_NEWS", "NAVER_STOCK", "DUCKDUCKGO_NEWS", "BAOMOI_NEWS", "TINHTE_FORUM", "SOLR_RESCRAPE"]
 # crawl_url_repo.FAIL_STATUSES 와 별도로 여기 목록을 두면 나중에 어긋날 수 있어
 # 하나의 정의를 그대로 가져다 쓴다.
 FAIL_STATUSES = list(crawl_url_repo.FAIL_STATUSES)
@@ -37,7 +37,6 @@ async def list_urls(
 
     status_map = {row["status"]: row["cnt"] for row in summary}
     total_pages = (total + crawl_url_repo.PAGE_SIZE - 1) // crawl_url_repo.PAGE_SIZE
-    flash = request.session.pop("flash", None)
 
     return templates.TemplateResponse("urls/list.html", {
         "request": request,
@@ -52,7 +51,6 @@ async def list_urls(
         "filter_status": status,
         "filter_source": source_type,
         "filter_host": host,
-        "flash": flash,
     })
 
 

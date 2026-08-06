@@ -87,6 +87,14 @@ Bootstrap 5 + Bootstrap Icons 는 CDN으로 로드한다.
 인증을 판단하는 구조라 CSRF 방어가 없으면 관리자가 로그인해둔 상태에서 악성 페이지가
 대신 상태 변경 요청을 보낼 수 있었다.
 
+### 2.4 플래시 메시지
+
+`app/flash.py` — `flash(request, msg, level)` 로 세션에 담아두면, `flash_context_processor`
+가 `csrf_context_processor` 와 동일하게 모든 템플릿 렌더링마다 세션에서 꺼내(pop) `flash`
+로 자동 주입한다(`base.html` 에서 표시). 라우트가 직접 pop 하지 않으므로, 플래시를 세운 뒤
+곧장 보게 될 페이지가 어디든(리다이렉트 목적지가 아니어도) 다음 렌더링에서 정확히 한 번만
+뜨고 사라진다.
+
 ---
 
 ## 3. 페이지별 기능
@@ -199,13 +207,15 @@ app/
   config.py            # 환경변수 로딩 + validate()
   logging_setup.py     # 로그 파일 핸들러 설정
   middleware.py        # RequireLoginMiddleware
-  tmpl.py              # Jinja2Templates 인스턴스 (순환 import 방지용 분리) + csrf_token 자동 주입
+  tmpl.py              # Jinja2Templates 인스턴스 (순환 import 방지용 분리) + csrf_token/flash 자동 주입
   csrf.py              # CSRF synchronizer token 발급/검증 (verify_csrf)
-  flash.py             # 세션 플래시 메시지 헬퍼 (routes 3곳 중복 통합)
+  flash.py             # 세션 플래시 메시지 헬퍼 + context_processor
+  constants.py         # SOURCE_TYPES 등 라우트 여러 곳이 공유하는 상수
   excel.py             # xlsx export 공통 모듈 — 수식 인젝션 방어 포함
 
   repository/
     db.py              # startup()/shutdown() + SSH 터널 + get_engine()
+    _pagination.py     # WHERE절 조립 + LIMIT/OFFSET + COUNT(*) 공용 헬퍼(paginate_query)
     keyword_repo.py    # t_keyword CRUD
     crawl_url_repo.py  # t_crawl_url 조회 + 재투입
     domain_repo.py     # t_domain 조회 + 규칙 편집
@@ -221,6 +231,7 @@ app/
 
   templates/
     base.html          # 다크 사이드바 레이아웃 (Bootstrap 5)
+    _macros.html       # sort_link/pagination 공용 매크로 (목록 페이지 4곳이 import)
     login.html         # 인증 화면
     dashboard.html
     keywords/list.html, form.html, stats.html

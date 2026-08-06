@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from sqlalchemy import Connection, text
 
+from app.repository._pagination import paginate_query
+
 PAGE_SIZE = 50
 
 
@@ -27,24 +29,19 @@ def list_logs(
         where.append("cl.run_date >= :from_date")
         params["from_date"] = from_date
 
-    where_sql = " AND ".join(where)
-    offset = (page - 1) * PAGE_SIZE
-    params.update({"limit": PAGE_SIZE, "offset": offset})
-
-    rows = conn.execute(text(f"""
-        SELECT cl.*, k.keyword, k.display_name
-        FROM t_collection_log cl
-        LEFT JOIN t_keyword k ON cl.keyword_id = k.id
-        WHERE {where_sql}
-        ORDER BY cl.started_at DESC
-        LIMIT :limit OFFSET :offset
-    """), params).mappings().all()
-
-    total = conn.execute(text(f"""
-        SELECT COUNT(*) FROM t_collection_log cl WHERE {where_sql}
-    """), {k: v for k, v in params.items() if k not in ("limit", "offset")}).scalar()
-
-    return rows, total or 0
+    return paginate_query(
+        conn,
+        """
+            SELECT cl.*, k.keyword, k.display_name
+            FROM t_collection_log cl
+            LEFT JOIN t_keyword k ON cl.keyword_id = k.id
+            WHERE {where_sql}
+            ORDER BY cl.started_at DESC
+            LIMIT :limit OFFSET :offset
+        """,
+        "SELECT COUNT(*) FROM t_collection_log cl WHERE {where_sql}",
+        where, params, page, PAGE_SIZE,
+    )
 
 
 def get_date_stats(conn: Connection, run_date: str) -> list:

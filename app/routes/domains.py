@@ -32,15 +32,9 @@ _EXPORT_COLUMNS = [
 ]
 
 
-@router.get("")
-async def list_domains(
-    request: Request,
-    search: str = "",
-    rules_filter: str = "",
-    excluded_filter: str = "",
-    sort: str = "",
-    order: str = "asc",
-):
+def _query_domains(search: str, rules_filter: str, excluded_filter: str, sort: str, order: str) -> tuple[list, str]:
+    """list_domains/export_domains 가 공유하는 필터 정규화 + 조회.
+    반환: (domains, order(정규화됨))."""
     if order not in ("asc", "desc"):
         order = "asc"
     with get_engine().connect() as conn:
@@ -52,8 +46,20 @@ async def list_domains(
             sort_by=sort or None,
             sort_order=order,
         )
+    return domains, order
 
-    flash = request.session.pop("flash", None)
+
+@router.get("")
+async def list_domains(
+    request: Request,
+    search: str = "",
+    rules_filter: str = "",
+    excluded_filter: str = "",
+    sort: str = "",
+    order: str = "asc",
+):
+    domains, order = _query_domains(search, rules_filter, excluded_filter, sort, order)
+
     return templates.TemplateResponse("domains/list.html", {
         "request": request,
         "active_page": "domains",
@@ -63,7 +69,6 @@ async def list_domains(
         "excluded_filter": excluded_filter,
         "sort_by": sort,
         "sort_order": order,
-        "flash": flash,
     })
 
 
@@ -76,17 +81,7 @@ async def export_domains(
     order: str = "asc",
 ) -> Response:
     """현재 화면의 검색·필터·정렬 조건을 그대로 적용해 조회 결과를 엑셀로 내려받는다."""
-    if order not in ("asc", "desc"):
-        order = "asc"
-    with get_engine().connect() as conn:
-        domains = domain_repo.list_domains(
-            conn,
-            search=search or None,
-            rules_filter=rules_filter or None,
-            excluded_filter=excluded_filter or None,
-            sort_by=sort or None,
-            sort_order=order,
-        )
+    domains, _order = _query_domains(search, rules_filter, excluded_filter, sort, order)
     return xlsx_response(domains, _EXPORT_COLUMNS, filename="도메인_규칙", sheet_name="도메인 규칙")
 
 

@@ -12,6 +12,12 @@
 
 ---
 
+## 8b2f197 — 2026-08-06
+docs: 설계문서에서 이전/이후 비교식 히스토리 서술 제거
+
+- docs/commit-log.md
+- docs/crawler-admin-design.md
+
 ## db5c54a — 2026-08-04
 docs: source_type 값 목록에 BAOMOI_NEWS/TINHTE_FORUM 누락된 것 보완
 

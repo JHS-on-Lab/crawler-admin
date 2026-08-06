@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_macros.html" as macros %}
 
 {% block title %}키워드 관리 — Crawler Admin{% endblock %}
 {% block page_title %}키워드 관리{% endblock %}
@@ -68,29 +69,18 @@
 <div class="card">
   <div class="card-body p-0">
     <table class="table table-hover mb-0">
-      {% macro sort_link(col, label, cls="") %}
-        {% set next_order = "desc" if (sort_by == col and sort_order == "asc") else "asc" %}
-        {% set href = "/keywords?source_type=" ~ filter_source ~ "&enabled=" ~ filter_enabled ~ "&search=" ~ search ~ "&sort=" ~ col ~ "&order=" ~ next_order ~ "&stats_days=" ~ stats_days %}
-        <a href="{{ href }}" class="text-decoration-none text-reset d-inline-flex align-items-center gap-1 {{ cls }}">
-          {{ label }}
-          {% if sort_by == col %}
-            <i class="bi bi-caret-{{ 'down' if sort_order == 'desc' else 'up' }}-fill" style="font-size:0.65rem;"></i>
-          {% else %}
-            <i class="bi bi-arrow-down-up text-muted" style="font-size:0.65rem; opacity:0.4;"></i>
-          {% endif %}
-        </a>
-      {% endmacro %}
+      {% set _base = "/keywords?source_type=" ~ filter_source ~ "&enabled=" ~ filter_enabled ~ "&search=" ~ search ~ "&stats_days=" ~ stats_days %}
       <thead>
         <tr>
-          <th style="width:3rem;">{{ sort_link("id", "ID") }}</th>
-          <th>{{ sort_link("keyword", "키워드") }}</th>
-          <th>{{ sort_link("source_type", "소스") }}</th>
-          <th>{{ sort_link("priority", "우선순위") }}</th>
-          <th>{{ sort_link("interval_seconds", "주기") }}</th>
-          <th>{{ sort_link("next_discover_at", "다음 수집") }}</th>
-          <th>{{ sort_link("enabled", "상태") }}</th>
+          <th style="width:3rem;">{{ macros.sort_link(_base, "id", "ID", sort_by, sort_order) }}</th>
+          <th>{{ macros.sort_link(_base, "keyword", "키워드", sort_by, sort_order) }}</th>
+          <th>{{ macros.sort_link(_base, "source_type", "소스", sort_by, sort_order) }}</th>
+          <th>{{ macros.sort_link(_base, "priority", "우선순위", sort_by, sort_order) }}</th>
+          <th>{{ macros.sort_link(_base, "interval_seconds", "주기", sort_by, sort_order) }}</th>
+          <th>{{ macros.sort_link(_base, "next_discover_at", "다음 수집", sort_by, sort_order) }}</th>
+          <th>{{ macros.sort_link(_base, "enabled", "상태", sort_by, sort_order) }}</th>
           <th class="text-end">
-            {{ sort_link("total_collected", "최근 " ~ stats_days ~ "일 합계") }}
+            {{ macros.sort_link(_base, "total_collected", "최근 " ~ stats_days ~ "일 합계", sort_by, sort_order) }}
             <i class="bi bi-info-circle text-muted ms-1"
                style="font-size:0.75rem; cursor:pointer;"
                data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-placement="top"

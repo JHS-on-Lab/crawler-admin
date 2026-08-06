@@ -2,13 +2,12 @@
 
 from fastapi import APIRouter, Query, Request
 
+from app.constants import SOURCE_TYPES
 from app.tmpl import templates
 from app.repository.db import get_engine
 from app.repository import collection_log_repo
 
 router = APIRouter(prefix="/logs")
-
-SOURCE_TYPES = ["NAVER_NEWS", "DAUM_NEWS", "GOOGLE_NEWS", "BAIDU_NEWS", "NAVER_STOCK", "DUCKDUCKGO_NEWS", "BAOMOI_NEWS", "TINHTE_FORUM"]
 
 
 @router.get("")

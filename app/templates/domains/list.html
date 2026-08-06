@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_macros.html" as macros %}
 
 {% block title %}도메인 규칙 — Crawler Admin{% endblock %}
 {% block page_title %}도메인 규칙{% endblock %}
@@ -58,22 +59,11 @@
 <div class="card">
   <div class="card-body p-0">
     <table class="table table-hover mb-0">
-      {% macro sort_link(col, label) %}
-        {% set next_order = "desc" if (sort_by == col and sort_order == "asc") else "asc" %}
-        {% set href = "/domains?search=" ~ search ~ "&rules_filter=" ~ rules_filter ~ "&excluded_filter=" ~ excluded_filter ~ "&sort=" ~ col ~ "&order=" ~ next_order %}
-        <a href="{{ href }}" class="text-decoration-none text-reset d-inline-flex align-items-center gap-1">
-          {{ label }}
-          {% if sort_by == col %}
-            <i class="bi bi-caret-{{ 'down' if sort_order == 'desc' else 'up' }}-fill" style="font-size:0.65rem;"></i>
-          {% else %}
-            <i class="bi bi-arrow-down-up text-muted" style="font-size:0.65rem; opacity:0.4;"></i>
-          {% endif %}
-        </a>
-      {% endmacro %}
+      {% set _base = "/domains?search=" ~ search ~ "&rules_filter=" ~ rules_filter ~ "&excluded_filter=" ~ excluded_filter %}
       <thead>
         <tr>
           <th>
-            {{ sort_link("host", "도메인") }}
+            {{ macros.sort_link(_base, "host", "도메인", sort_by, sort_order) }}
             <i class="bi bi-info-circle text-muted ms-1"
                style="font-size:0.75rem; cursor:pointer;"
                data-bs-toggle="popover"
@@ -86,7 +76,7 @@
                </div>"></i>
           </th>
           <th class="text-center">
-            {{ sort_link("excluded", "차단") }}
+            {{ macros.sort_link(_base, "excluded", "차단", sort_by, sort_order) }}
             <i class="bi bi-info-circle text-muted ms-1"
                style="font-size:0.75rem; cursor:pointer;"
                data-bs-toggle="popover"
@@ -101,7 +91,7 @@
                </div>"></i>
           </th>
           <th class="text-center">
-            {{ sort_link("render_mode", "렌더 모드") }}
+            {{ macros.sort_link(_base, "render_mode", "렌더 모드", sort_by, sort_order) }}
             <i class="bi bi-info-circle text-muted ms-1"
                style="font-size:0.75rem; cursor:pointer;"
                data-bs-toggle="popover"
@@ -116,7 +106,7 @@
                </div>"></i>
           </th>
           <th class="text-center">
-            {{ sort_link("rules_enabled", "규칙") }}
+            {{ macros.sort_link(_base, "rules_enabled", "규칙", sort_by, sort_order) }}
             <i class="bi bi-info-circle text-muted ms-1"
                style="font-size:0.75rem; cursor:pointer;"
                data-bs-toggle="popover"
@@ -131,7 +121,7 @@
                </div>"></i>
           </th>
           <th class="text-end">
-            {{ sort_link("crawl_delay_ms", "지연(ms)") }}
+            {{ macros.sort_link(_base, "crawl_delay_ms", "지연(ms)", sort_by, sort_order) }}
             <i class="bi bi-info-circle text-muted ms-1"
                style="font-size:0.75rem; cursor:pointer;"
                data-bs-toggle="popover"
@@ -145,7 +135,7 @@
                </div>"></i>
           </th>
           <th class="text-end">
-            {{ sort_link("success_rate", "성공률") }}
+            {{ macros.sort_link(_base, "success_rate", "성공률", sort_by, sort_order) }}
             <i class="bi bi-info-circle text-muted ms-1"
                style="font-size:0.75rem; cursor:pointer;"
                data-bs-toggle="popover"
@@ -164,7 +154,7 @@
                </div>"></i>
           </th>
           <th class="text-center">
-            {{ sort_link("recent_fail_count", "실패 수") }}
+            {{ macros.sort_link(_base, "recent_fail_count", "실패 수", sort_by, sort_order) }}
             <i class="bi bi-info-circle text-muted ms-1"
                style="font-size:0.75rem; cursor:pointer;"
                data-bs-toggle="popover"
@@ -178,7 +168,7 @@
                </div>"></i>
           </th>
           <th>
-            {{ sort_link("cooldown_until", "쿨다운") }}
+            {{ macros.sort_link(_base, "cooldown_until", "쿨다운", sort_by, sort_order) }}
             <i class="bi bi-info-circle text-muted ms-1"
                style="font-size:0.75rem; cursor:pointer;"
                data-bs-toggle="popover"

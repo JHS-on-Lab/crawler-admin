@@ -6,11 +6,12 @@ from collections import Counter, defaultdict
 
 from sqlalchemy import Connection, bindparam, text
 
+from app.repository._pagination import paginate_query
+
 PAGE_SIZE = 50
 
 # 재투입(reinject) 가능한 상태. list_failed_urls 필터 검증, reinject_bulk 검증,
-# routes/urls.py 의 select 옵션 렌더링까지 이 하나의 정의를 공유한다 — 예전엔
-# urls.py 에 별도로 같은 목록이 복붙돼 있어서 서로 어긋날 위험이 있었다.
+# routes/urls.py 의 select 옵션 렌더링까지 이 하나의 정의를 공유한다.
 FAIL_STATUSES = ("failed_transient", "failed_permanent", "dead")
 
 
@@ -56,27 +57,22 @@ def list_failed_urls(
         where.append("cu.host LIKE :host")
         params["host"] = f"%{host}%"
 
-    where_sql = " AND ".join(where)
-    offset = (page - 1) * PAGE_SIZE
-    params.update({"limit": PAGE_SIZE, "offset": offset})
-
-    rows = conn.execute(text(f"""
-        SELECT cu.id, cu.url, cu.host, cu.source_type, cu.status,
-               cu.attempt_count, cu.last_error_code, cu.last_error_msg,
-               cu.updated_at, cu.priority, cu.discovery_mode,
-               k.keyword, k.display_name
-        FROM t_crawl_url cu
-        LEFT JOIN t_keyword k ON cu.keyword_id = k.id
-        WHERE {where_sql}
-        ORDER BY cu.updated_at DESC
-        LIMIT :limit OFFSET :offset
-    """), params).mappings().all()
-
-    total = conn.execute(text(f"""
-        SELECT COUNT(*) AS cnt FROM t_crawl_url cu WHERE {where_sql}
-    """), {k: v for k, v in params.items() if k not in ("limit", "offset")}).scalar()
-
-    return rows, total or 0
+    return paginate_query(
+        conn,
+        """
+            SELECT cu.id, cu.url, cu.host, cu.source_type, cu.status,
+                   cu.attempt_count, cu.last_error_code, cu.last_error_msg,
+                   cu.updated_at, cu.priority, cu.discovery_mode,
+                   k.keyword, k.display_name
+            FROM t_crawl_url cu
+            LEFT JOIN t_keyword k ON cu.keyword_id = k.id
+            WHERE {where_sql}
+            ORDER BY cu.updated_at DESC
+            LIMIT :limit OFFSET :offset
+        """,
+        "SELECT COUNT(*) AS cnt FROM t_crawl_url cu WHERE {where_sql}",
+        where, params, page, PAGE_SIZE,
+    )
 
 
 def get_failure_groups(

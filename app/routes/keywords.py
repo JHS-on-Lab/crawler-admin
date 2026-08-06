@@ -6,6 +6,7 @@ from datetime import date, timedelta
 from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import RedirectResponse, Response
 
+from app.constants import SOURCE_TYPES
 from app.csrf import verify_csrf
 from app.flash import flash as _flash
 from app.tmpl import templates
@@ -14,8 +15,6 @@ from app.repository import keyword_repo
 from app.excel import ExcelColumn, xlsx_response
 
 router = APIRouter(prefix="/keywords")
-
-SOURCE_TYPES = ["NAVER_NEWS", "DAUM_NEWS", "GOOGLE_NEWS", "BAIDU_NEWS", "NAVER_STOCK", "DUCKDUCKGO_NEWS", "BAOMOI_NEWS", "TINHTE_FORUM"]
 
 # t_keyword.source_options_json 을 실제로 쓰는(discovery-worker 가 apply_source_options()
 # 로 읽는) 소스 — 지금은 GOOGLE_NEWS 의 region 오버라이드 하나뿐이다.
@@ -62,16 +61,11 @@ def _clean_stats_days(stats_days: int) -> int:
     return stats_days if stats_days in STATS_DAYS_CHOICES else DEFAULT_STATS_DAYS
 
 
-@router.get("")
-async def list_keywords(
-    request: Request,
-    source_type: str = "",
-    enabled: str = "",
-    search: str = "",
-    sort: str = "",
-    order: str = "asc",
-    stats_days: int = Query(DEFAULT_STATS_DAYS),
-):
+def _query_keywords(
+    source_type: str, enabled: str, search: str, sort: str, order: str, stats_days: int,
+) -> tuple[list, str, int]:
+    """list_keywords/export_keywords 가 공유하는 필터 정규화 + 조회.
+    반환: (keywords, order(정규화됨), stats_days(정규화됨))."""
     if order not in ("asc", "desc"):
         order = "asc"
     stats_days = _clean_stats_days(stats_days)
@@ -87,9 +81,24 @@ async def list_keywords(
             sort_order=order,
             stats_from_date=stats_from_date,
         )
+    return keywords, order, stats_days
+
+
+@router.get("")
+async def list_keywords(
+    request: Request,
+    source_type: str = "",
+    enabled: str = "",
+    search: str = "",
+    sort: str = "",
+    order: str = "asc",
+    stats_days: int = Query(DEFAULT_STATS_DAYS),
+):
+    keywords, order, stats_days = _query_keywords(source_type, enabled, search, sort, order, stats_days)
+
+    with get_engine().connect() as conn:
         counts = keyword_repo.get_source_type_counts(conn)
 
-    flash = request.session.pop("flash", None)
     return templates.TemplateResponse("keywords/list.html", {
         "request": request,
         "active_page": "keywords",
@@ -103,7 +112,6 @@ async def list_keywords(
         "sort_order": order,
         "stats_days": stats_days,
         "stats_days_choices": STATS_DAYS_CHOICES,
-        "flash": flash,
     })
 
 
@@ -117,21 +125,7 @@ async def export_keywords(
     stats_days: int = Query(DEFAULT_STATS_DAYS),
 ) -> Response:
     """현재 화면의 검색·필터·정렬 조건을 그대로 적용해 조회 결과를 엑셀로 내려받는다."""
-    if order not in ("asc", "desc"):
-        order = "asc"
-    stats_days = _clean_stats_days(stats_days)
-    stats_from_date = date.today() - timedelta(days=stats_days - 1)
-
-    with get_engine().connect() as conn:
-        keywords = keyword_repo.list_keywords(
-            conn,
-            source_type=source_type or None,
-            enabled=enabled or None,
-            search=search or None,
-            sort_by=sort or None,
-            sort_order=order,
-            stats_from_date=stats_from_date,
-        )
+    keywords, _order, stats_days = _query_keywords(source_type, enabled, search, sort, order, stats_days)
     export_columns = _EXPORT_COLUMNS + [
         ExcelColumn("total_collected", f"최근 {stats_days}일 수집 수"),
     ]
