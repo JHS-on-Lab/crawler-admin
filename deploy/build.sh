@@ -20,7 +20,7 @@ echo "  프로젝트 루트: ${PROJECT_ROOT}"
 # 같아야 한다 — 다르면 컨테이너가 appuser 소유가 아닌 UID로 실행돼 /app
 # 접근 권한 문제가 생긴다.
 docker build \
-    --build-arg APP_UID=1001 --build-arg APP_GID=1001 \
+    --build-arg APP_UID=1000 --build-arg APP_GID=1000 \
     -t "${IMAGE_NAME}:${TAG}" \
     "${PROJECT_ROOT}"
 
