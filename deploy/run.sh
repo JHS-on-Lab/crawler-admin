@@ -19,7 +19,8 @@ APP_ENV="${APP_ENV:-dev}"
 ENV_FILE="${PROJECT_ROOT}/.env.${APP_ENV}"
 PORT="${PORT:-8000}"
 
-LOG_DIR="${HOME}/apps/data/crawler-admin/logs"
+DATA_ROOT="/data001/crawler"
+LOG_DIR="${DATA_ROOT}/apps/data/crawler-admin/logs"
 
 if [[ ! -f "${ENV_FILE}" ]]; then
     echo "오류: 환경 설정 파일을 찾을 수 없습니다: ${ENV_FILE}"
