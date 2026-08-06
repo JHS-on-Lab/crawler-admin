@@ -8,6 +8,14 @@ FROM python:3.12-slim
 WORKDIR /app
 
 # ----------------------------------------------------------------
+# 타임존: 서울(KST)
+# ----------------------------------------------------------------
+ENV TZ=Asia/Seoul
+RUN apt-get update && apt-get install -y --no-install-recommends tzdata \
+    && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
+    && rm -rf /var/lib/apt/lists/*
+
+# ----------------------------------------------------------------
 # Python 패키지 설치
 # ----------------------------------------------------------------
 COPY requirements.txt .
