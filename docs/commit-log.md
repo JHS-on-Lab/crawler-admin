@@ -12,6 +12,14 @@
 
 ---
 
+## 3778c07 — 2026-08-06
+fix: build.sh 의 APP_UID/APP_GID 를 다시 동적($(id -u)/$(id -g))으로 변경
+
+- Dockerfile
+- deploy/build.sh
+- deploy/run.sh
+- docs/commit-log.md
+
 ## 801f1d0 — 2026-08-06
 fix: run.sh --user 제거, APP_UID/APP_GID 고정값(1000) 유지
 

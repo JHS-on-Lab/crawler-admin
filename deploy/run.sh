@@ -19,7 +19,7 @@ APP_ENV="${APP_ENV:-dev}"
 ENV_FILE="${PROJECT_ROOT}/.env.${APP_ENV}"
 PORT="${PORT:-8000}"
 
-DATA_ROOT="/data001/crawler"
+DATA_ROOT="/data001"
 LOG_DIR="${DATA_ROOT}/apps/data/crawler-admin/logs"
 
 if [[ ! -f "${ENV_FILE}" ]]; then
