@@ -12,6 +12,14 @@
 
 ---
 
+## 801f1d0 — 2026-08-06
+fix: run.sh --user 제거, APP_UID/APP_GID 고정값(1000) 유지
+
+- Dockerfile
+- deploy/build.sh
+- deploy/run.sh
+- docs/commit-log.md
+
 ## 5f44f16 — 2026-08-06
 컨테이너 UID/GID 기본값을 1001에서 1000으로 변경
 

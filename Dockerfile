@@ -5,6 +5,9 @@
 # ----------------------------------------------------------------
 FROM python:3.12-slim
 
+# build.sh 가 빌드하는 사람의 UID/GID로 덮어쓴다. --build-arg 없이 수동으로
+# docker build 만 할 경우를 대비한 기본값은 이 서버의 실제 배포 계정 값인
+# 1000으로 둔다.
 ARG APP_UID=1000
 ARG APP_GID=1000
 
@@ -18,9 +21,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends tzdata \
     && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
     && rm -rf /var/lib/apt/lists/*
 
-# 이 서버의 crawler-admin 배포 계정 UID/GID(1000, build.sh가 --build-arg 로
-# 전달)로 작업용 계정을 만든다. deploy/run.sh 는 --user 를 따로 지정하지
-# 않고 이미지가 빌드 시점에 갖게 된 이 계정을 그대로 상속해 실행한다.
+# 이미지를 빌드하는 사람의 UID/GID로 작업용 계정을 만든다(build.sh가
+# --build-arg 로 전달). deploy/run.sh 는 --user 를 따로 지정하지 않고 이
+# 계정을 그대로 상속해 실행한다 — 배포 계정 하나로 build→run 을 항상
+# 순서대로 실행하는 운영 방식이라 빌드 시점과 실행 시점의 UID가 자동으로
+# 일치한다.
 RUN groupadd --gid "${APP_GID}" appgroup \
     && useradd \
         --uid "${APP_UID}" \
