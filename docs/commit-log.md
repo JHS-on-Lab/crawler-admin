@@ -12,6 +12,12 @@
 
 ---
 
+## 8a9fdbf — 2026-08-06
+fix: DATA_ROOT 에서 /crawler 서브디렉터리 제거
+
+- deploy/run.sh
+- docs/commit-log.md
+
 ## 3778c07 — 2026-08-06
 fix: build.sh 의 APP_UID/APP_GID 를 다시 동적($(id -u)/$(id -g))으로 변경
 
