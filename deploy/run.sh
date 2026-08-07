@@ -11,16 +11,26 @@
 # ----------------------------------------------------------------
 
 set -e
+# deployment.env 로드 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEPLOYMENT_ENV_FILE="${SCRIPT_DIR}/deployment.env"
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+if [[ ! -f "${DEPLOYMENT_ENV_FILE}" ]]; then
+    echo "ERROR: 배포 설정 파일이 없습니다: ${DEPLOYMENT_ENV_FILE}" >&2
+    exit 1
+fi
 
-APP_ENV="${APP_ENV:-dev}"
-ENV_FILE="${PROJECT_ROOT}/.env.${APP_ENV}"
-PORT="${PORT:-8000}"
+source "${DEPLOYMENT_ENV_FILE}"
 
-DATA_ROOT="/data001/crawler"
-LOG_DIR="${DATA_ROOT}/apps/data/crawler-admin/logs"
+
+# 변수 설정 
+CONTAINER_NAME=$1
+PORT="${2:-8000}"
+ENV_FILE=$3
+IMAGE=$4
+
+BASE_OUTPUT_DIR="/data001/crawler/apps/data"
+LOG_DIR="${BASE_OUTPUT_DIR}/${CONTAINER_NAME}/logs"
 
 if [[ ! -f "${ENV_FILE}" ]]; then
     echo "오류: 환경 설정 파일을 찾을 수 없습니다: ${ENV_FILE}"
@@ -31,14 +41,10 @@ fi
 
 mkdir -p "${LOG_DIR}"
 
-CONTAINER_NAME="crawler-admin"
-
 if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
     echo "▶ 기존 컨테이너 제거: ${CONTAINER_NAME}"
     docker rm -f "${CONTAINER_NAME}"
 fi
-
-IMAGE="crawler-admin:latest"
 
 echo "▶ 컨테이너 시작: ${CONTAINER_NAME}"
 echo "  이미지   : ${IMAGE}"
