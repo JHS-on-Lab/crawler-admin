@@ -8,11 +8,26 @@
 # ----------------------------------------------------------------
 
 set -e
+# deployment.env 로드 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEPLOYMENT_ENV_FILE="${SCRIPT_DIR}/deployment.env"
 
-IMAGE_NAME="crawler-admin"
+if [[ ! -f "${DEPLOYMENT_ENV_FILE}" ]]; then
+    echo "ERROR: 배포 설정 파일이 없습니다: ${DEPLOYMENT_ENV_FILE}" >&2
+    exit 1
+fi
+
+source "${DEPLOYMENT_ENV_FILE}"
+
+# 변수 설정 
+GAR_HOST="${GAR_LOCATION}-docker.pkg.dev"
+IMAGE_NAME="${GAR_HOST}/${GCP_PROJECT_ID}/${GAR_REPOSITORY}/${IMAGE_NAME}"
+#IMAGE_NAME="crawler-admin"
 TAG="${1:-latest}"
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
+
+# 빌드 시작 
 echo "▶ 빌드 시작: ${IMAGE_NAME}:${TAG}"
 echo "  프로젝트 루트: ${PROJECT_ROOT}"
 
